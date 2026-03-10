@@ -76,19 +76,19 @@ public:
           TimeInForce TIF,
           OrderStatus Status);
 
-    int Get_OrderID() const {return Order_ID_;}
-    int Get_TraderID() const {return Trader_ID_;}
-    uint64_t Get_Price() const {return Price_;}
-    int Get_Quantity() const {return Quantity_;}
-    std::chrono::system_clock::time_point Get_Time() const {return Timestamp_;}
+    int GetOrderID() const {return Order_ID_;}
+    int GetTraderID() const {return Trader_ID_;}
+    uint64_t GetPrice() const {return Price_;}
+    int GetQuantity() const {return Quantity_;}
+    std::chrono::system_clock::time_point GetTime() const {return Timestamp_;}
 
-    const std::string& Get_Symbol() const {return Symbol_;}
-    OrderType Get_Type() const {return Type_;}
-    TimeInForce Get_TIF() const {return TIF_;}
-    OrderStatus Get_Status() const {return Status_;}
-    OrderSide Get_Side() const {return Side_;}
+    const std::string& GetSymbol() const {return Symbol_;}
+    OrderType GetType() const {return Type_;}
+    TimeInForce GetTIF() const {return TIF_;}
+    OrderStatus GetStatus() const {return Status_;}
+    OrderSide GetSide() const {return Side_;}
 
-    void Set_Status(OrderStatus New_Status){Status_=New_Status;}
+    void SetStatus(OrderStatus New_Status){Status_=New_Status;}
 
 };
 
