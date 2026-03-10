@@ -3,7 +3,7 @@
 //
 #include <gtest/gtest.h>
 #include <chrono>
-#include "order.h"
+#include "../../include/Domain/order.h"
 
 //Test 1: Validate a correct order creation
 TEST(OrderTest, ValidOrderCreation) {
@@ -103,3 +103,54 @@ TEST(OrderTest, UpdateStatus) {
     EXPECT_EQ(order.Get_Status(),OrderStatus::FILLED);
 
 }
+
+TEST(OrderTest,OperatorStreamFormat) {
+
+    auto now=std::chrono::system_clock::now();
+    Order order(1,
+   12,
+   OrderSide::BUY,
+   OrderType::LIMIT,
+   "BTC",
+   1502500,
+   100,
+   now,
+   TimeInForce::GTC,
+   OrderStatus::NEW
+   );
+
+    std::stringstream ss;
+    ss<<order;
+    std::string result=ss.str();
+
+    EXPECT_TRUE(result.find("ID: 1")!=std::string::npos);
+    EXPECT_TRUE(result.find("Trader: 12")!=std::string::npos);
+    EXPECT_TRUE(result.find("Side: BUY")!=std::string::npos);
+    EXPECT_TRUE(result.find("Type: LIMIT")!=std::string::npos);
+    EXPECT_TRUE(result.find("Symbol: BTC")!=std::string::npos);
+    EXPECT_TRUE(result.find("Price: 1502500")!=std::string::npos);
+    EXPECT_TRUE(result.find("Quantity: 100")!=std::string::npos);
+    EXPECT_TRUE(result.find("TIF: GTC")!=std::string::npos);
+    EXPECT_TRUE(result.find("Status: NEW")!=std::string::npos);
+    EXPECT_TRUE(result.find("Time: ")!=std::string::npos);
+
+}
+class OrderStatusTest : public ::testing::TestWithParam<OrderStatus> {};
+
+TEST_P(OrderStatusTest,CheckToString) {
+    OrderStatus status=GetParam();
+    const char* result=ToString(status);
+    EXPECT_NE(result,nullptr);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    AllStatuses,
+    OrderStatusTest,
+    ::testing::Values(
+        OrderStatus::NEW,
+        OrderStatus::PARTIALLY_FILLED,
+        OrderStatus::FILLED,
+        OrderStatus::CANCELED,
+        OrderStatus::REJECTED
+    )
+);

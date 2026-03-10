@@ -2,7 +2,7 @@
 // Created by denni on 3/7/2026.
 //
 
-#include "order.h"
+#include "../../include/Domain/order.h"
 #include <stdexcept>
 #include <iomanip>
 
@@ -49,10 +49,10 @@ std::ostream& operator<<(std::ostream& os, const Order& order) {
     auto ms=std::chrono::duration_cast<std::chrono::milliseconds>(
         tp.time_since_epoch()%std::chrono::seconds(1)).count();
 
-    os << "Order[ID: " << order.Get_OrderID()
+    os << "Order[ ID: " << order.Get_OrderID()
        << " | Trader: " <<order.Get_TraderID()
        << " | Side: " <<ToString(order.Get_Side())
-       << " | Time:" << std::put_time(&bt,"%H:%M:%S.")<<std::setfill('0')<<std::setw(3)<<ms
+       << " | Time: " << std::put_time(&bt,"%H:%M:%S.")<<std::setfill('0')<<std::setw(3)<<ms
        << " | Symbol: " << order.Get_Symbol()
        << " | Price: " << order.Get_Price()
        << " | Type: " <<ToString(order.Get_Type())
