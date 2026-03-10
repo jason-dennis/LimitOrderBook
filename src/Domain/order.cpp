@@ -35,7 +35,7 @@ Order::Order(int Order_ID, int Trader_ID, OrderSide Side,
 
 std::ostream& operator<<(std::ostream& os, const Order& order) {
     // Transform in (HH:MM:SS)
-    auto tp=order.Get_Time();
+    auto tp=order.GetTime();
     std::time_t t =std::chrono::system_clock::to_time_t(tp);
     std::tm bt;
     #ifdef _WIN32
@@ -49,16 +49,16 @@ std::ostream& operator<<(std::ostream& os, const Order& order) {
     auto ms=std::chrono::duration_cast<std::chrono::milliseconds>(
         tp.time_since_epoch()%std::chrono::seconds(1)).count();
 
-    os << "Order[ ID: " << order.Get_OrderID()
-       << " | Trader: " <<order.Get_TraderID()
-       << " | Side: " <<ToString(order.Get_Side())
+    os << "Order[ ID: " << order.GetOrderID()
+       << " | Trader: " <<order.GetTraderID()
+       << " | Side: " <<ToString(order.GetSide())
        << " | Time: " << std::put_time(&bt,"%H:%M:%S.")<<std::setfill('0')<<std::setw(3)<<ms
-       << " | Symbol: " << order.Get_Symbol()
-       << " | Price: " << order.Get_Price()
-       << " | Type: " <<ToString(order.Get_Type())
-       << " | Quantity: " <<order.Get_Quantity()
-       << " | TIF: " << ToString(order.Get_TIF())
-       << " | Status: "<< ToString(order.Get_Status())
+       << " | Symbol: " << order.GetSymbol()
+       << " | Price: " << order.GetPrice()
+       << " | Type: " <<ToString(order.GetType())
+       << " | Quantity: " <<order.GetQuantity()
+       << " | TIF: " << ToString(order.GetTIF())
+       << " | Status: "<< ToString(order.GetStatus())
        << " ]";
 
     return os;

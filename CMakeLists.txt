@@ -15,14 +15,18 @@ FetchContent_MakeAvailable(googletest)
 
 add_executable(LimitOrderBook main.cpp
         src/Domain/order.cpp
-        include/Domain/order.h)
+        include/Domain/order.h
+        include/Storage/IOrderBookStorage.h
+        include/Storage/MultisetOrderBookStorage.h
+        src/Storage/MultisetOrderBookStorage.cpp
+)
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     add_compile_options(--coverage)
     add_link_options(--coverage)
 endif()
 
 enable_testing()
-add_executable(run_tests Tests/Domain/test_order.cpp src/Domain/order.cpp)
+add_executable(run_tests Tests/Domain/test_order.cpp Tests/Storage/test_multiset_storage.cpp src/Domain/order.cpp src/Storage/MultisetOrderBookStorage.cpp)
 target_include_directories(run_tests PRIVATE Domain)
 target_include_directories(LimitOrderBook PRIVATE Domain)
 

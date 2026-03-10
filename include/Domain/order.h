@@ -1,7 +1,7 @@
 //
 // Created by denni on 3/7/2026.
 //
-
+#pragma once
 #ifndef LIMITORDERBOOK_ORDER_H
 #define LIMITORDERBOOK_ORDER_H
 #include <string>
@@ -62,10 +62,10 @@ private:
     OrderType Type_;
     std::string Symbol_;
     uint64_t Price_;
-    int Quantity_;
+    mutable int Quantity_;
     std::chrono::system_clock::time_point Timestamp_;
     TimeInForce TIF_;
-    OrderStatus Status_;
+    mutable OrderStatus Status_;
 
 public:
     virtual ~Order() = default;
@@ -88,7 +88,8 @@ public:
     OrderStatus GetStatus() const {return Status_;}
     OrderSide GetSide() const {return Side_;}
 
-    void SetStatus(OrderStatus New_Status){Status_=New_Status;}
+    void SetStatus(OrderStatus New_Status) const {Status_=New_Status;}
+    void SetQuantity(int new_quantity)const {Quantity_=new_quantity;}
 
 };
 

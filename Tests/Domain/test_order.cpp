@@ -20,16 +20,16 @@ TEST(OrderTest, ValidOrderCreation) {
     OrderStatus::NEW
     );
 
-    EXPECT_EQ(order.Get_OrderID(),1);
-    EXPECT_EQ(order.Get_TraderID(),12);
-    EXPECT_EQ(order.Get_Side(),OrderSide::BUY);
-    EXPECT_EQ(order.Get_Type(),OrderType::LIMIT);
-    EXPECT_EQ(order.Get_Symbol(),"BTC");
-    EXPECT_EQ(order.Get_Price(),1502500);
-    EXPECT_EQ(order.Get_Quantity(),100);
-    EXPECT_EQ(order.Get_Time(),now);
-    EXPECT_EQ(order.Get_TIF(),TimeInForce::GTC);
-    EXPECT_EQ(order.Get_Status(),OrderStatus::NEW);
+    EXPECT_EQ(order.GetOrderID(),1);
+    EXPECT_EQ(order.GetTraderID(),12);
+    EXPECT_EQ(order.GetSide(),OrderSide::BUY);
+    EXPECT_EQ(order.GetType(),OrderType::LIMIT);
+    EXPECT_EQ(order.GetSymbol(),"BTC");
+    EXPECT_EQ(order.GetPrice(),1502500);
+    EXPECT_EQ(order.GetQuantity(),100);
+    EXPECT_EQ(order.GetTime(),now);
+    EXPECT_EQ(order.GetTIF(),TimeInForce::GTC);
+    EXPECT_EQ(order.GetStatus(),OrderStatus::NEW);
 
 }
 
@@ -98,9 +98,9 @@ TEST(OrderTest, UpdateStatus) {
    TimeInForce::GTC,
    OrderStatus::NEW
    );
-    EXPECT_EQ(order.Get_Status(),OrderStatus::NEW);
-    order.Set_Status(OrderStatus::FILLED);
-    EXPECT_EQ(order.Get_Status(),OrderStatus::FILLED);
+    EXPECT_EQ(order.GetStatus(),OrderStatus::NEW);
+    order.SetStatus(OrderStatus::FILLED);
+    EXPECT_EQ(order.GetStatus(),OrderStatus::FILLED);
 
 }
 
