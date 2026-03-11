@@ -56,6 +56,8 @@ public:
      * @return true if the Ask side is empty.
      */
     virtual bool IsAskEmpty() const = 0;
+    virtual bool CanFillQuantityAsks(int Quantity, int Price) const = 0;
+    virtual bool CanFillQuantityBids(int Quantity, int Price) const = 0;
 
     /**
      * @brief Removes the top-priority Buy order from the book.

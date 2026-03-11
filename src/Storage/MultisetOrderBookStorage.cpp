@@ -11,7 +11,7 @@ void MultisetOrderBook::AddOrder(const Order &order) {
      * @complexity O(log N) for insertion, O(1) for indexing.
     */
     if (order.GetSide()==OrderSide::BUY) {
-        auto it=bids.insert(order);
+        auto it = bids.insert(order);
         bidLocation[order.GetOrderID()]=it;
     }
     else {
@@ -116,6 +116,36 @@ bool MultisetOrderBook::IsAskEmpty() const {
      * @brief Checks if there are any Sell orders in the book.
      */
     return asks.empty();
+}
+
+bool MultisetOrderBook::CanFillQuantityAsks(int Quantity, int Price) const {
+
+    for (auto order : asks) {
+        if (order.GetPrice() > Price) {
+            break;
+        }
+        Quantity-=std::min(Quantity,order.GetQuantity());
+        if (Quantity == 0) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool MultisetOrderBook::CanFillQuantityBids(int Quantity, int Price) const {
+
+    for (auto order : bids) {
+        if (order.GetPrice() > Price) {
+            break;
+        }
+        Quantity-=std::min(Quantity,order.GetQuantity());
+        if (Quantity == 0) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 void MultisetOrderBook::PopBestBid() {

@@ -69,9 +69,12 @@ public:
 
     bool IsBidEmpty() const override;
     bool IsAskEmpty() const override;
+    bool CanFillQuantityAsks(int Quantity, int Price) const override;
+    bool CanFillQuantityBids(int Quantity, int Price) const override;
 
     void PopBestBid() override;
     void PopBestAsk() override;
+
 
 };
 #endif //LIMITORDERBOOK_MULTISETORDERBOOKSTORAGE_H
