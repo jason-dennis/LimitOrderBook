@@ -4,8 +4,8 @@
 
 #ifndef LIMITORDERBOOK_MATCHINGENGINE_H
 #define LIMITORDERBOOK_MATCHINGENGINE_H
-#include "Storage/IOrderBookStorage.h"
-#include "Domain/trade.h"
+#include "../../include/Storage/IOrderBookStorage.h"
+#include "../../include/Domain/trade.h"
 #include <vector>
 #include <deque>
 
@@ -19,7 +19,7 @@ public:
     MatchingEngine(IOrderBook& OrderBook):OrderBook_(OrderBook){};
 
     std::vector<Trade> ProcessOrder(Order& NewOrder);
-
+    const IOrderBook& GetOrderBook() const { return OrderBook_; }
     void MatchOrderBid(Order &NewOrder, std::vector<Trade>& Trades);
     void MatchOrderAsk(Order &NewOrder, std::vector<Trade>& Trades);
 
