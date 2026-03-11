@@ -27,7 +27,7 @@ TEST(OrderTest, ValidOrderCreation) {
     EXPECT_EQ(order.GetSymbol(),"BTC");
     EXPECT_EQ(order.GetPrice(),1502500);
     EXPECT_EQ(order.GetQuantity(),100);
-    EXPECT_EQ(order.GetTime(),now);
+    EXPECT_TRUE(order.GetTime()==now);
     EXPECT_EQ(order.GetTIF(),TimeInForce::GTC);
     EXPECT_EQ(order.GetStatus(),OrderStatus::NEW);
 
