@@ -6,6 +6,23 @@
 #include <stdexcept>
 #include <iomanip>
 
+constexpr const char* ToString(OrderStatus status) {
+    constexpr const char* names[] = {"NEW", "PARTIALLY_FILLED", "FILLED", "CANCELED", "REJECTED"};
+    return names[static_cast<int>(status)];
+}
+constexpr const char* ToString(OrderSide side) {
+    constexpr const char* names[] = {"BUY", "SELL"};
+    return names[static_cast<int>(side)];
+}
+constexpr const char* ToString(OrderType type) {
+    constexpr const char* names[] = {"MARKET", "LIMIT", "STOP"};
+    return names[static_cast<int>(type)];
+}
+constexpr const char* ToString(TimeInForce tif) {
+    constexpr const char* names[] = {"GTC", "IOC", "FOK"};
+    return names[static_cast<int>(tif)];
+}
+
 Order::Order(int Order_ID, int Trader_ID, OrderSide Side,
             OrderType Type,
             const std::string& Symbol, uint64_t Price,int Quantity,
@@ -22,6 +39,11 @@ Order::Order(int Order_ID, int Trader_ID, OrderSide Side,
     Timestamp_(Timestamp),
     TIF_(TIF),
     Status_(Status){
+    /**
+     * @brief Constructor for the Order class.
+     * Performs validation on price, quantity, and symbol to ensure data integrity.
+     * * @throw std::invalid_argument If price <= 0, quantity <= 0, or symbol is empty.
+     */
     if (Price_ == 0) {
         throw std::invalid_argument("Price must be higher than 0.0");
     }
@@ -34,7 +56,15 @@ Order::Order(int Order_ID, int Trader_ID, OrderSide Side,
 }
 
 std::ostream& operator<<(std::ostream& os, const Order& order) {
-    // Transform in (HH:MM:SS)
+    /**
+     * @brief Overloads the stream insertion operator for the Order class.
+     * Formats the order data into a human-readable string, including
+     * millisecond-precision timestamps (HH:MM:SS.mmm).
+     * * @param os The output stream.
+     * @param order The order object to be printed.
+     * @return std::ostream& The modified output stream.
+     */
+
     auto tp=order.GetTime();
     std::time_t t =std::chrono::system_clock::to_time_t(tp);
     std::tm bt;
@@ -44,8 +74,6 @@ std::ostream& operator<<(std::ostream& os, const Order& order) {
         localtime_r(&t,&bt);
     #endif
 
-
-    // Calculate milliseconds
     auto ms=std::chrono::duration_cast<std::chrono::milliseconds>(
         tp.time_since_epoch()%std::chrono::seconds(1)).count();
 

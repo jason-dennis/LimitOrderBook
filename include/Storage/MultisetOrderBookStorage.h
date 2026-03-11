@@ -10,6 +10,11 @@
 #include <iterator>
 
 struct BidOrder {
+    /**
+     * @struct BidOrder
+     * @brief Comparator for the Buy side of the order book.
+     * Orders are sorted by Price (Descending) and then by Time (Ascending).
+     */
     bool operator()(const Order& lhs, const Order& rhs) const {
         if (lhs.GetPrice() == rhs.GetPrice()) {
             return lhs.GetTime() < rhs.GetTime();
@@ -19,6 +24,11 @@ struct BidOrder {
 };
 
 struct AskOrder {
+    /**
+     * @struct AskOrder
+     * @brief Comparator for the Sell side of the order book.
+     * Orders are sorted by Price (Ascending) and then by Time (Ascending).
+     */
     bool operator()(const Order& lhs, const Order& rhs) const {
         if (lhs.GetPrice() == rhs.GetPrice()) {
             return lhs.GetTime() < rhs.GetTime();
@@ -29,10 +39,21 @@ struct AskOrder {
 
 
 class MultisetOrderBook: public IOrderBook {
+    /**
+     * @class MultisetOrderBook
+     * @brief A high-performance order book storage implementation.
+     * Uses std::multiset to keep orders sorted by price-time priority and
+     * std::unordered_map to store iterators for O(1) access by Order ID.
+     */
 private:
+    /// Sorted container for Buy orders
     std::multiset<Order,BidOrder>bids;
+    /// Sorted container for Sell orders
     std::multiset<Order,AskOrder>asks;
+
+    /// Index for quick access to Bid iterators by ID
     std::unordered_map<int,std::multiset<Order,BidOrder>::iterator>bidLocation;
+    /// Index for quick access to Ask iterators by ID
     std::unordered_map<int,std::multiset<Order,AskOrder>::iterator>askLocation;
 public:
 

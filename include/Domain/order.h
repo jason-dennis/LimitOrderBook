@@ -9,6 +9,7 @@
 #include <ostream>
 #include <ctime>
 
+/** @enum OrderStatus Represents the current lifecycle stage of an order. */
 enum class OrderStatus {
     NEW,
     PARTIALLY_FILLED,
@@ -17,44 +18,41 @@ enum class OrderStatus {
     REJECTED
 };
 
+/** @enum OrderSide Represents the direction of the trade. */
 enum class OrderSide {
     BUY,
     SELL
 };
 
+/** @enum TimeInForce Defines how long the order remains active. */
 enum class TimeInForce {
     GTC,
     IOC,
     FOK
 };
 
+/** @enum OrderType Represents the execution constraint of the order. */
 enum class OrderType {
     MARKET,
     LIMIT,
     STOP,
     STOP_LIMIT
 };
-constexpr const char* ToString(OrderStatus status) {
-    constexpr const char* names[] = {"NEW", "PARTIALLY_FILLED", "FILLED", "CANCELED", "REJECTED"};
-    return names[static_cast<int>(status)];
-}
 
-constexpr const char* ToString(OrderSide side) {
-    constexpr const char* names[] = {"BUY", "SELL"};
-    return names[static_cast<int>(side)];
-}
-
-constexpr const char* ToString(OrderType type) {
-    constexpr const char* names[] = {"MARKET", "LIMIT", "STOP"};
-    return names[static_cast<int>(type)];
-}
-
-constexpr const char* ToString(TimeInForce tif) {
-    constexpr const char* names[] = {"GTC", "IOC", "FOK"};
-    return names[static_cast<int>(tif)];
-}
+// Helper functions for string conversion
+constexpr const char* ToString(OrderStatus status);
+constexpr const char* ToString(OrderSide side);
+constexpr const char* ToString(OrderType type);
+constexpr const char* ToString(TimeInForce tif);
 
 class Order {
+    /**
+     * @class Order
+     * @brief Represents a financial order in the trading system.
+     * This class is immutable for its core identity (ID, Trader, Symbol)
+     * but allows modification of quantity and status via 'mutable' fields
+     * to support high-performance updates within sorted containers.
+     */
 private:
     const int Order_ID_;
     const int Trader_ID_;
@@ -69,6 +67,19 @@ private:
 
 public:
     virtual ~Order() = default;
+    /**
+     * @brief Constructs a new Order object.
+     * @param Order_ID Unique ID.
+     * @param Trader_ID Owner ID.
+     * @param Side Buy/Sell.
+     * @param Type Execution type.
+     * @param Symbol Asset ticker.
+     * @param Price Price in integer format.
+     * @param Quantity Initial volume.
+     * @param Timestamp Entry time.
+     * @param TIF Time in force policy.
+     * @param Status Initial status.
+     */
     Order(int Order_ID, int Trader_ID, OrderSide Side,
           OrderType Type,
           const std::string& Symbol, uint64_t Price, int Quantity,
@@ -88,11 +99,19 @@ public:
     OrderStatus GetStatus() const {return Status_;}
     OrderSide GetSide() const {return Side_;}
 
+    /**
+     * @brief Updates the order status.
+     * Marked const because Status_ is mutable, allowing updates in multisets.
+     */
     void SetStatus(OrderStatus New_Status) const {Status_=New_Status;}
+    /**
+     * @brief Updates the remaining quantity.
+     * Marked const because Quantity_ is mutable.
+     */
     void SetQuantity(int new_quantity)const {Quantity_=new_quantity;}
 
 };
-
+/** @brief Global operator for printing Order details. */
 std::ostream& operator<<(std::ostream& os,const Order& order);
 
 #endif //LIMITORDERBOOK_ORDER_H
