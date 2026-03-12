@@ -1,5 +1,5 @@
 #include <gtest/gtest.h>
-#include "Domain/order.h"
+#include "../../include/Domain/order.h"
 #include <chrono>
 #include <sstream>
 
@@ -93,7 +93,7 @@ TEST_F(OrderTest, Constructor_StoresQuantity) {
 
 TEST_F(OrderTest, Constructor_StoresTimestamp) {
     Order o = CreateDefaultOrder();
-    EXPECT_EQ(o.GetTime(), Now);
+    EXPECT_TRUE(o.GetTime()== Now);
 }
 
 TEST_F(OrderTest, Constructor_StoresTIF_GTC) {

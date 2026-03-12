@@ -28,8 +28,10 @@ set(COMMON_SOURCES
 add_library(trading_lib STATIC ${COMMON_SOURCES})
 target_include_directories(trading_lib PUBLIC include)
 
-add_executable(LimitOrderBook main.cpp
-        src/Domain/order.cpp)
+add_library(trading_lib_cov STATIC ${COMMON_SOURCES})
+target_include_directories(trading_lib_cov PUBLIC include)
+
+add_executable(LimitOrderBook main.cpp)
 target_link_libraries(LimitOrderBook PRIVATE trading_lib)
 
 enable_testing()
@@ -38,11 +40,12 @@ include(GoogleTest)
 add_executable(run_tests
         Tests/Storage/test_multiset_storage.cpp
         Tests/Engine/TestMatchingEngine.cpp
-        src/Domain/order.cpp
 )
-target_link_libraries(run_tests PRIVATE trading_lib gtest_main)
+target_link_libraries(run_tests PRIVATE trading_lib_cov gtest_main)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    target_compile_options(trading_lib_cov PRIVATE --coverage)
+    target_link_options(trading_lib_cov PRIVATE --coverage)
     target_compile_options(run_tests PRIVATE --coverage)
     target_link_options(run_tests PRIVATE --coverage)
 endif()
