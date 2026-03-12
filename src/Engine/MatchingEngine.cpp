@@ -23,7 +23,7 @@ std::vector<Trade> MatchingEngine::ProcessOrder(Order &NewOrder) {
             return ProcessSellLimit(NewOrder);
         }
         if (Type == OrderType::MARKET) {
-            //return ProcessSellMarket(NewOrder);
+            return ProcessSellMarket(NewOrder);
         }
     }
 }
