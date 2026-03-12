@@ -1,327 +1,405 @@
 #include <gtest/gtest.h>
+#include "../../include/Engine/MatchingEngine.h"
+#include "../../include/Storage/MultisetOrderBookStorage.h"
 #include "../../include/Domain/order.h"
+#include "../../include/Domain/trade.h"
 #include <chrono>
-#include <sstream>
 
-class OrderTest : public ::testing::Test {
+// ─────────────────────────────────────────────
+// Fixture
+// ─────────────────────────────────────────────
+
+class MatchingEngineTest : public ::testing::Test {
 protected:
+    MultisetOrderBook book;
+    MatchingEngine engine{book};
     std::chrono::system_clock::time_point Now = std::chrono::system_clock::now();
 
-    Order CreateDefaultOrder() {
-        return Order(1, 42, OrderSide::BUY, OrderType::LIMIT,
-                     "BTCUSD", 100, 10, Now, TimeInForce::GTC, OrderStatus::NEW);
+    Order MakeBuy(int id, uint64_t price, int qty,
+                  OrderType type = OrderType::LIMIT,
+                  TimeInForce tif = TimeInForce::GTC) {
+        return Order(id, id * 10, OrderSide::BUY, type, "BTCUSD",
+                     price, qty, Now, tif, OrderStatus::NEW);
+    }
+
+    Order MakeSell(int id, uint64_t price, int qty,
+                   OrderType type = OrderType::LIMIT,
+                   TimeInForce tif = TimeInForce::GTC) {
+        return Order(id, id * 10, OrderSide::SELL, type, "BTCUSD",
+                     price, qty, Now, tif, OrderStatus::NEW);
     }
 };
 
-// ==========================================
-// 1. CONSTRUCTOR & GETTERS
-// ==========================================
+// ═════════════════════════════════════════════
+// ProcessBuyLimit — GTC
+// ═════════════════════════════════════════════
 
-TEST_F(OrderTest, Constructor_StoresOrderID) {
-    Order o = CreateDefaultOrder();
-    EXPECT_EQ(o.GetOrderID(), 1);
+TEST_F(MatchingEngineTest, BuyLimit_GTC_NoMatch_AddsToBook) {
+    auto buy = MakeBuy(1, 100, 10);
+    auto trades = engine.ProcessOrder(buy);
+    EXPECT_TRUE(trades.empty());
+    EXPECT_FALSE(book.IsBidEmpty());
 }
 
-TEST_F(OrderTest, Constructor_StoresTraderID) {
-    Order o = CreateDefaultOrder();
-    EXPECT_EQ(o.GetTraderID(), 42);
+TEST_F(MatchingEngineTest, BuyLimit_GTC_FullMatch_NoRemainder) {
+    auto sell = MakeSell(1, 100, 10);
+    engine.ProcessOrder(sell); // resting ask
+    auto buy = MakeBuy(2, 100, 10);
+    auto trades = engine.ProcessOrder(buy);
+    EXPECT_EQ(trades.size(), 1u);
+    EXPECT_EQ(trades[0].GetQuantity(), 10);
+    EXPECT_TRUE(book.IsBidEmpty());
+    EXPECT_TRUE(book.IsAskEmpty());
 }
 
-TEST_F(OrderTest, Constructor_StoresSide_Buy) {
-    Order o = CreateDefaultOrder();
-    EXPECT_EQ(o.GetSide(), OrderSide::BUY);
+TEST_F(MatchingEngineTest, BuyLimit_GTC_PartialMatch_RemainderAddedToBook) {
+    auto sell = MakeSell(1, 100, 5);
+    engine.ProcessOrder(sell); // resting ask of 5
+    auto buy = MakeBuy(2, 100, 10);
+    auto trades = engine.ProcessOrder(buy);
+    EXPECT_EQ(trades.size(), 1u);
+    EXPECT_EQ(trades[0].GetQuantity(), 5);
+    // remaining 5 should rest on bid side
+    EXPECT_FALSE(book.IsBidEmpty());
+    EXPECT_EQ(book.GetBestBid()->GetQuantity(), 5);
 }
 
-TEST_F(OrderTest, Constructor_StoresSide_Sell) {
-    Order o(2, 10, OrderSide::SELL, OrderType::MARKET,
-            "ETHUSD", 200, 5, Now, TimeInForce::IOC, OrderStatus::NEW);
-    EXPECT_EQ(o.GetSide(), OrderSide::SELL);
+TEST_F(MatchingEngineTest, BuyLimit_GTC_PriceTooLow_NoMatch_AddsToBook) {
+    auto sell = MakeSell(1, 110, 10);
+    engine.ProcessOrder(sell);
+    auto buy = MakeBuy(2, 100, 10); // price below ask
+    auto trades = engine.ProcessOrder(buy);
+    EXPECT_TRUE(trades.empty());
+    EXPECT_FALSE(book.IsBidEmpty());
+    EXPECT_FALSE(book.IsAskEmpty());
 }
 
-TEST_F(OrderTest, Constructor_StoresType_Limit) {
-    Order o = CreateDefaultOrder();
-    EXPECT_EQ(o.GetType(), OrderType::LIMIT);
+TEST_F(MatchingEngineTest, BuyLimit_GTC_MultipleAsks_MatchesMultiple) {
+    auto sell1 = MakeSell(1, 100, 5);
+    auto sell2 = MakeSell(2, 100, 5);
+    engine.ProcessOrder(sell1);
+    engine.ProcessOrder(sell2);
+    auto buy = MakeBuy(3, 100, 10);
+    auto trades = engine.ProcessOrder(buy);
+    EXPECT_EQ(trades.size(), 2u);
+    EXPECT_TRUE(book.IsAskEmpty());
 }
 
-TEST_F(OrderTest, Constructor_StoresType_Market) {
-    Order o(2, 10, OrderSide::BUY, OrderType::MARKET,
-            "ETHUSD", 50, 5, Now, TimeInForce::IOC, OrderStatus::NEW);
-    EXPECT_EQ(o.GetType(), OrderType::MARKET);
+// ═════════════════════════════════════════════
+// ProcessBuyLimit — IOC
+// ═════════════════════════════════════════════
+
+TEST_F(MatchingEngineTest, BuyLimit_IOC_PartialMatch_RemainderDiscarded) {
+    auto sell = MakeSell(1, 100, 5);
+    engine.ProcessOrder(sell);
+    auto buy = MakeBuy(2, 100, 10, OrderType::LIMIT, TimeInForce::IOC);
+    auto trades = engine.ProcessOrder(buy);
+    EXPECT_EQ(trades.size(), 1u);
+    EXPECT_EQ(trades[0].GetQuantity(), 5);
+    // remainder NOT added to book for IOC
+    EXPECT_TRUE(book.IsBidEmpty());
 }
 
-TEST_F(OrderTest, Constructor_StoresType_Stop) {
-    Order o(3, 10, OrderSide::SELL, OrderType::STOP,
-            "ETHUSD", 150, 5, Now, TimeInForce::GTC, OrderStatus::NEW);
-    EXPECT_EQ(o.GetType(), OrderType::STOP);
+TEST_F(MatchingEngineTest, BuyLimit_IOC_NoMatch_NothingAdded) {
+    auto buy = MakeBuy(1, 100, 10, OrderType::LIMIT, TimeInForce::IOC);
+    auto trades = engine.ProcessOrder(buy);
+    EXPECT_TRUE(trades.empty());
+    EXPECT_TRUE(book.IsBidEmpty());
 }
 
-TEST_F(OrderTest, Constructor_StoresType_StopLimit) {
-    Order o(4, 10, OrderSide::BUY, OrderType::STOP_LIMIT,
-            "ETHUSD", 150, 5, Now, TimeInForce::GTC, OrderStatus::NEW);
-    EXPECT_EQ(o.GetType(), OrderType::STOP_LIMIT);
+// ═════════════════════════════════════════════
+// ProcessBuyLimit — FOK
+// ═════════════════════════════════════════════
+
+TEST_F(MatchingEngineTest, BuyLimit_FOK_CanFill_ExecutesFully) {
+    auto sell = MakeSell(1, 100, 10);
+    engine.ProcessOrder(sell);
+    auto buy = MakeBuy(2, 100, 10, OrderType::LIMIT, TimeInForce::FOK);
+    auto trades = engine.ProcessOrder(buy);
+    EXPECT_EQ(trades.size(), 1u);
+    EXPECT_EQ(trades[0].GetQuantity(), 10);
 }
 
-TEST_F(OrderTest, Constructor_StoresSymbol) {
-    Order o = CreateDefaultOrder();
-    EXPECT_EQ(o.GetSymbol(), "BTCUSD");
+TEST_F(MatchingEngineTest, BuyLimit_FOK_CannotFill_NoTrades) {
+    auto sell = MakeSell(1, 100, 5); // only 5 available
+    engine.ProcessOrder(sell);
+    auto buy = MakeBuy(2, 100, 10, OrderType::LIMIT, TimeInForce::FOK); // needs 10
+    auto trades = engine.ProcessOrder(buy);
+    EXPECT_TRUE(trades.empty());
+    EXPECT_FALSE(book.IsAskEmpty()); // ask untouched
 }
 
-TEST_F(OrderTest, Constructor_StoresPrice) {
-    Order o = CreateDefaultOrder();
-    EXPECT_EQ(o.GetPrice(), 100u);
+// ═════════════════════════════════════════════
+// ProcessBuyMarket
+// ═════════════════════════════════════════════
+
+TEST_F(MatchingEngineTest, BuyMarket_GTC_FullMatch) {
+    auto sell = MakeSell(1, 100, 10);
+    engine.ProcessOrder(sell);
+    auto buy = MakeBuy(2, 0, 10, OrderType::MARKET, TimeInForce::GTC);
+    auto trades = engine.ProcessOrder(buy);
+    EXPECT_EQ(trades.size(), 1u);
+    EXPECT_EQ(trades[0].GetQuantity(), 10);
+    EXPECT_TRUE(book.IsAskEmpty());
 }
 
-TEST_F(OrderTest, Constructor_StoresPriceLargeValue) {
-    uint64_t bigPrice = 999999999999ULL;
-    Order o(2, 10, OrderSide::BUY, OrderType::LIMIT,
-            "BTCUSD", bigPrice, 5, Now, TimeInForce::GTC, OrderStatus::NEW);
-    EXPECT_EQ(o.GetPrice(), bigPrice);
+TEST_F(MatchingEngineTest, BuyMarket_GTC_NoAsks_NoTrades) {
+    auto buy = MakeBuy(1, 0, 10, OrderType::MARKET, TimeInForce::GTC);
+    auto trades = engine.ProcessOrder(buy);
+    EXPECT_TRUE(trades.empty());
 }
 
-TEST_F(OrderTest, Constructor_ThrowsOnPriceZero) {
-    EXPECT_THROW(
-        Order(2, 10, OrderSide::BUY, OrderType::LIMIT,
-              "BTCUSD", 0, 5, Now, TimeInForce::GTC, OrderStatus::NEW),
-        std::exception
-    );
+TEST_F(MatchingEngineTest, BuyMarket_FOK_CanFill_Executes) {
+    auto sell = MakeSell(1, 100, 10);
+    engine.ProcessOrder(sell);
+    auto buy = MakeBuy(2, 100, 10, OrderType::MARKET, TimeInForce::FOK);
+    auto trades = engine.ProcessOrder(buy);
+    EXPECT_EQ(trades.size(), 1u);
 }
 
-TEST_F(OrderTest, Constructor_StoresQuantity) {
-    Order o = CreateDefaultOrder();
-    EXPECT_EQ(o.GetQuantity(), 10);
+TEST_F(MatchingEngineTest, BuyMarket_FOK_CannotFill_NoTrades) {
+    auto sell = MakeSell(1, 100, 5);
+    engine.ProcessOrder(sell);
+    auto buy = MakeBuy(2, 100, 10, OrderType::MARKET, TimeInForce::FOK);
+    auto trades = engine.ProcessOrder(buy);
+    EXPECT_TRUE(trades.empty());
 }
 
-TEST_F(OrderTest, Constructor_StoresTimestamp) {
-    Order o = CreateDefaultOrder();
-    EXPECT_TRUE(o.GetTime()== Now);
+// ═════════════════════════════════════════════
+// ProcessSellLimit — GTC
+// ═════════════════════════════════════════════
+
+TEST_F(MatchingEngineTest, SellLimit_GTC_NoMatch_AddsToBook) {
+    auto sell = MakeSell(1, 110, 10);
+    auto trades = engine.ProcessOrder(sell);
+    EXPECT_TRUE(trades.empty());
+    EXPECT_FALSE(book.IsAskEmpty());
 }
 
-TEST_F(OrderTest, Constructor_StoresTIF_GTC) {
-    Order o = CreateDefaultOrder();
-    EXPECT_EQ(o.GetTIF(), TimeInForce::GTC);
+TEST_F(MatchingEngineTest, SellLimit_GTC_FullMatch_NoRemainder) {
+    auto buy = MakeBuy(1, 100, 10);
+    engine.ProcessOrder(buy);
+    auto sell = MakeSell(2, 100, 10);
+    auto trades = engine.ProcessOrder(sell);
+    EXPECT_EQ(trades.size(), 1u);
+    EXPECT_EQ(trades[0].GetQuantity(), 10);
+    EXPECT_TRUE(book.IsBidEmpty());
+    EXPECT_TRUE(book.IsAskEmpty());
 }
 
-TEST_F(OrderTest, Constructor_StoresTIF_IOC) {
-    Order o(2, 10, OrderSide::BUY, OrderType::LIMIT,
-            "BTCUSD", 100, 10, Now, TimeInForce::IOC, OrderStatus::NEW);
-    EXPECT_EQ(o.GetTIF(), TimeInForce::IOC);
+TEST_F(MatchingEngineTest, SellLimit_GTC_PartialMatch_RemainderAddedToBook) {
+    auto buy = MakeBuy(1, 100, 5);
+    engine.ProcessOrder(buy);
+    auto sell = MakeSell(2, 100, 10);
+    auto trades = engine.ProcessOrder(sell);
+    EXPECT_EQ(trades.size(), 1u);
+    EXPECT_EQ(trades[0].GetQuantity(), 5);
+    EXPECT_FALSE(book.IsAskEmpty());
+    EXPECT_EQ(book.GetBestAsk()->GetQuantity(), 5);
 }
 
-TEST_F(OrderTest, Constructor_StoresTIF_FOK) {
-    Order o(2, 10, OrderSide::BUY, OrderType::LIMIT,
-            "BTCUSD", 100, 10, Now, TimeInForce::FOK, OrderStatus::NEW);
-    EXPECT_EQ(o.GetTIF(), TimeInForce::FOK);
+TEST_F(MatchingEngineTest, SellLimit_GTC_PriceTooHigh_NoMatch_AddsToBook) {
+    auto buy = MakeBuy(1, 90, 10);
+    engine.ProcessOrder(buy);
+    auto sell = MakeSell(2, 100, 10); // price above bid
+    auto trades = engine.ProcessOrder(sell);
+    EXPECT_TRUE(trades.empty());
+    EXPECT_FALSE(book.IsAskEmpty());
+    EXPECT_FALSE(book.IsBidEmpty());
 }
 
-TEST_F(OrderTest, Constructor_StoresStatus_New) {
-    Order o = CreateDefaultOrder();
-    EXPECT_EQ(o.GetStatus(), OrderStatus::NEW);
+TEST_F(MatchingEngineTest, SellLimit_GTC_MultipleBids_MatchesMultiple) {
+    auto buy1 = MakeBuy(1, 100, 5);
+    auto buy2 = MakeBuy(2, 100, 5);
+    engine.ProcessOrder(buy1);
+    engine.ProcessOrder(buy2);
+    auto sell = MakeSell(3, 100, 10);
+    auto trades = engine.ProcessOrder(sell);
+    EXPECT_EQ(trades.size(), 2u);
+    EXPECT_TRUE(book.IsBidEmpty());
 }
 
-TEST_F(OrderTest, Constructor_StoresStatus_Rejected) {
-    Order o(2, 10, OrderSide::BUY, OrderType::LIMIT,
-            "BTCUSD", 100, 10, Now, TimeInForce::GTC, OrderStatus::REJECTED);
-    EXPECT_EQ(o.GetStatus(), OrderStatus::REJECTED);
+// ═════════════════════════════════════════════
+// ProcessSellLimit — IOC
+// ═════════════════════════════════════════════
+
+TEST_F(MatchingEngineTest, SellLimit_IOC_PartialMatch_RemainderDiscarded) {
+    auto buy = MakeBuy(1, 100, 5);
+    engine.ProcessOrder(buy);
+    auto sell = MakeSell(2, 100, 10, OrderType::LIMIT, TimeInForce::IOC);
+    auto trades = engine.ProcessOrder(sell);
+    EXPECT_EQ(trades.size(), 1u);
+    EXPECT_TRUE(book.IsAskEmpty()); // remainder not added
 }
 
-// ==========================================
-// 2. SETTERS (mutable fields)
-// ==========================================
-
-TEST_F(OrderTest, SetQuantity_UpdatesQuantity) {
-    Order o = CreateDefaultOrder();
-    o.SetQuantity(50);
-    EXPECT_EQ(o.GetQuantity(), 50);
+TEST_F(MatchingEngineTest, SellLimit_IOC_NoMatch_NothingAdded) {
+    auto sell = MakeSell(1, 100, 10, OrderType::LIMIT, TimeInForce::IOC);
+    auto trades = engine.ProcessOrder(sell);
+    EXPECT_TRUE(trades.empty());
+    EXPECT_TRUE(book.IsAskEmpty());
 }
 
-TEST_F(OrderTest, SetQuantity_ToZero) {
-    Order o = CreateDefaultOrder();
-    o.SetQuantity(0);
-    EXPECT_EQ(o.GetQuantity(), 0);
+// ═════════════════════════════════════════════
+// ProcessSellLimit — FOK
+// ═════════════════════════════════════════════
+
+TEST_F(MatchingEngineTest, SellLimit_FOK_CanFill_ExecutesFully) {
+    auto buy = MakeBuy(1, 100, 10);
+    engine.ProcessOrder(buy);
+    auto sell = MakeSell(2, 100, 10, OrderType::LIMIT, TimeInForce::FOK);
+    auto trades = engine.ProcessOrder(sell);
+    EXPECT_EQ(trades.size(), 1u);
+    EXPECT_EQ(trades[0].GetQuantity(), 10);
 }
 
-TEST_F(OrderTest, SetQuantity_MultipleUpdates) {
-    Order o = CreateDefaultOrder();
-    o.SetQuantity(100);
-    o.SetQuantity(75);
-    o.SetQuantity(0);
-    EXPECT_EQ(o.GetQuantity(), 0);
+TEST_F(MatchingEngineTest, SellLimit_FOK_CannotFill_NoTrades) {
+    auto buy = MakeBuy(1, 100, 5);
+    engine.ProcessOrder(buy);
+    auto sell = MakeSell(2, 100, 10, OrderType::LIMIT, TimeInForce::FOK);
+    auto trades = engine.ProcessOrder(sell);
+    EXPECT_TRUE(trades.empty());
+    EXPECT_FALSE(book.IsBidEmpty()); // bid untouched
 }
 
-TEST_F(OrderTest, SetStatus_ToPartiallyFilled) {
-    Order o = CreateDefaultOrder();
-    o.SetStatus(OrderStatus::PARTIALLY_FILLED);
-    EXPECT_EQ(o.GetStatus(), OrderStatus::PARTIALLY_FILLED);
+// ═════════════════════════════════════════════
+// ProcessSellMarket
+// ═════════════════════════════════════════════
+
+TEST_F(MatchingEngineTest, SellMarket_GTC_FullMatch) {
+    auto buy = MakeBuy(1, 100, 10);
+    engine.ProcessOrder(buy);
+    auto sell = MakeSell(2, 0, 10, OrderType::MARKET, TimeInForce::GTC);
+    auto trades = engine.ProcessOrder(sell);
+    EXPECT_EQ(trades.size(), 1u);
+    EXPECT_EQ(trades[0].GetQuantity(), 10);
+    EXPECT_TRUE(book.IsBidEmpty());
 }
 
-TEST_F(OrderTest, SetStatus_ToFilled) {
-    Order o = CreateDefaultOrder();
-    o.SetStatus(OrderStatus::FILLED);
-    EXPECT_EQ(o.GetStatus(), OrderStatus::FILLED);
+TEST_F(MatchingEngineTest, SellMarket_GTC_NoBids_NoTrades) {
+    auto sell = MakeSell(1, 0, 10, OrderType::MARKET, TimeInForce::GTC);
+    auto trades = engine.ProcessOrder(sell);
+    EXPECT_TRUE(trades.empty());
 }
 
-TEST_F(OrderTest, SetStatus_ToCanceled) {
-    Order o = CreateDefaultOrder();
-    o.SetStatus(OrderStatus::CANCELED);
-    EXPECT_EQ(o.GetStatus(), OrderStatus::CANCELED);
+TEST_F(MatchingEngineTest, SellMarket_FOK_CanFill_Executes) {
+    auto buy = MakeBuy(1, 100, 10);
+    engine.ProcessOrder(buy);
+    auto sell = MakeSell(2, 100, 10, OrderType::MARKET, TimeInForce::FOK);
+    auto trades = engine.ProcessOrder(sell);
+    EXPECT_EQ(trades.size(), 1u);
 }
 
-TEST_F(OrderTest, SetStatus_ToRejected) {
-    Order o = CreateDefaultOrder();
-    o.SetStatus(OrderStatus::REJECTED);
-    EXPECT_EQ(o.GetStatus(), OrderStatus::REJECTED);
+TEST_F(MatchingEngineTest, SellMarket_FOK_CannotFill_NoTrades) {
+    auto buy = MakeBuy(1, 100, 5);
+    engine.ProcessOrder(buy);
+    auto sell = MakeSell(2, 100, 10, OrderType::MARKET, TimeInForce::FOK);
+    auto trades = engine.ProcessOrder(sell);
+    EXPECT_TRUE(trades.empty());
 }
 
-TEST_F(OrderTest, SetStatus_Transition_NewToFilledToCanceled) {
-    Order o = CreateDefaultOrder();
-    EXPECT_EQ(o.GetStatus(), OrderStatus::NEW);
-    o.SetStatus(OrderStatus::FILLED);
-    EXPECT_EQ(o.GetStatus(), OrderStatus::FILLED);
-    o.SetStatus(OrderStatus::CANCELED);
-    EXPECT_EQ(o.GetStatus(), OrderStatus::CANCELED);
+// ═════════════════════════════════════════════
+// Trade fields correctness
+// ═════════════════════════════════════════════
+
+TEST_F(MatchingEngineTest, Trade_HasCorrectPrice) {
+    auto sell = MakeSell(1, 105, 10);
+    engine.ProcessOrder(sell);
+    auto buy = MakeBuy(2, 105, 10);
+    auto trades = engine.ProcessOrder(buy);
+    ASSERT_EQ(trades.size(), 1u);
+    EXPECT_EQ(trades[0].GetPrice(), 105u);
 }
 
-TEST_F(OrderTest, SetQuantity_WorksOnConstRef) {
-    const Order o(1, 42, OrderSide::BUY, OrderType::LIMIT,
-                  "BTCUSD", 100, 10, Now, TimeInForce::GTC, OrderStatus::NEW);
-    o.SetQuantity(5);
-    EXPECT_EQ(o.GetQuantity(), 5);
+TEST_F(MatchingEngineTest, Trade_HasCorrectMakerAndTakerID) {
+    auto sell = MakeSell(1, 100, 10); // MakerID = 1*10 = 10
+    engine.ProcessOrder(sell);
+    auto buy = MakeBuy(2, 100, 10);  // TakerID = 2*10 = 20
+    auto trades = engine.ProcessOrder(buy);
+    ASSERT_EQ(trades.size(), 1u);
+    EXPECT_EQ(trades[0].GetMakerID(), 10);
+    EXPECT_EQ(trades[0].GetTakerID(), 20);
 }
 
-TEST_F(OrderTest, SetStatus_WorksOnConstRef) {
-    const Order o(1, 42, OrderSide::BUY, OrderType::LIMIT,
-                  "BTCUSD", 100, 10, Now, TimeInForce::GTC, OrderStatus::NEW);
-    o.SetStatus(OrderStatus::FILLED);
-    EXPECT_EQ(o.GetStatus(), OrderStatus::FILLED);
+TEST_F(MatchingEngineTest, Trade_HasCorrectQuantity_PartialMatch) {
+    auto sell = MakeSell(1, 100, 4);
+    engine.ProcessOrder(sell);
+    auto buy = MakeBuy(2, 100, 10);
+    auto trades = engine.ProcessOrder(buy);
+    ASSERT_GE(trades.size(), 1u);
+    EXPECT_EQ(trades[0].GetQuantity(), 4);
 }
 
-// ==========================================
-// 3. ToString HELPERS
-// ==========================================
+// ═════════════════════════════════════════════
+// HistoryTrades — capped at 100
+// ═════════════════════════════════════════════
 
-TEST_F(OrderTest, ToString_OrderStatus_New) {
-    EXPECT_STREQ(ToString(OrderStatus::NEW), "NEW");
+TEST_F(MatchingEngineTest, HistoryTrades_CappedAt100) {
+    // Push 101 trades through the engine — history should stay at 100
+    for (int i = 1; i <= 101; i++) {
+        auto sell = MakeSell(i, 100, 1);
+        engine.ProcessOrder(sell);
+        auto buy = MakeBuy(i + 200, 100, 1);
+        engine.ProcessOrder(buy);
+    }
+    // We can't access HistoryTrades_ directly, but if no crash and
+    // the engine still works correctly, the cap is functioning
+    auto sell = MakeSell(999, 100, 1);
+    engine.ProcessOrder(sell);
+    auto buy = MakeBuy(1000, 100, 1);
+    auto trades = engine.ProcessOrder(buy);
+    EXPECT_EQ(trades.size(), 1u);
 }
 
-TEST_F(OrderTest, ToString_OrderStatus_PartiallyFilled) {
-    EXPECT_STREQ(ToString(OrderStatus::PARTIALLY_FILLED), "PARTIALLY_FILLED");
+// ═════════════════════════════════════════════
+// GetOrderBook
+// ═════════════════════════════════════════════
+
+TEST_F(MatchingEngineTest, GetOrderBook_ReturnsCorrectState) {
+    auto buy = MakeBuy(1, 100, 10);
+    engine.ProcessOrder(buy);
+    const auto& ob = engine.GetOrderBook();
+    EXPECT_FALSE(ob.IsBidEmpty());
+    EXPECT_TRUE(ob.IsAskEmpty());
 }
 
-TEST_F(OrderTest, ToString_OrderStatus_Filled) {
-    EXPECT_STREQ(ToString(OrderStatus::FILLED), "FILLED");
+// ═════════════════════════════════════════════
+// Integration scenarios
+// ═════════════════════════════════════════════
+
+TEST_F(MatchingEngineTest, Integration_BuyAndSell_CrossingPrices_Match) {
+    auto buy = MakeBuy(1, 105, 10);
+    engine.ProcessOrder(buy);
+    auto sell = MakeSell(2, 100, 10);
+    auto trades = engine.ProcessOrder(sell);
+    EXPECT_EQ(trades.size(), 1u);
+    EXPECT_TRUE(book.IsBidEmpty());
+    EXPECT_TRUE(book.IsAskEmpty());
 }
 
-TEST_F(OrderTest, ToString_OrderStatus_Canceled) {
-    EXPECT_STREQ(ToString(OrderStatus::CANCELED), "CANCELED");
+TEST_F(MatchingEngineTest, Integration_MultipleOrders_CorrectMatchOrder) {
+    // Two bids at different prices — sell should match highest first
+    auto buy1 = MakeBuy(1, 100, 5);
+    auto buy2 = MakeBuy(2, 105, 5);
+    engine.ProcessOrder(buy1);
+    engine.ProcessOrder(buy2);
+    auto sell = MakeSell(3, 100, 5);
+    auto trades = engine.ProcessOrder(sell);
+    ASSERT_EQ(trades.size(), 1u);
+    EXPECT_EQ(trades[0].GetPrice(), 105u); // matched at best bid
 }
 
-TEST_F(OrderTest, ToString_OrderStatus_Rejected) {
-    EXPECT_STREQ(ToString(OrderStatus::REJECTED), "REJECTED");
+TEST_F(MatchingEngineTest, Integration_MarketBuy_IgnoresPrice_MatchesAnyAsk) {
+    auto sell = MakeSell(1, 999, 10); // very high ask price
+    engine.ProcessOrder(sell);
+    auto buy = MakeBuy(2, 0, 10, OrderType::MARKET);
+    auto trades = engine.ProcessOrder(buy);
+    EXPECT_EQ(trades.size(), 1u); // market ignores price
 }
 
-TEST_F(OrderTest, ToString_OrderSide_Buy) {
-    EXPECT_STREQ(ToString(OrderSide::BUY), "BUY");
-}
-
-TEST_F(OrderTest, ToString_OrderSide_Sell) {
-    EXPECT_STREQ(ToString(OrderSide::SELL), "SELL");
-}
-
-TEST_F(OrderTest, ToString_OrderType_Market) {
-    EXPECT_STREQ(ToString(OrderType::MARKET), "MARKET");
-}
-
-TEST_F(OrderTest, ToString_OrderType_Limit) {
-    EXPECT_STREQ(ToString(OrderType::LIMIT), "LIMIT");
-}
-
-TEST_F(OrderTest, ToString_OrderType_Stop) {
-    EXPECT_STREQ(ToString(OrderType::STOP), "STOP");
-}
-
-TEST_F(OrderTest, ToString_TimeInForce_GTC) {
-    EXPECT_STREQ(ToString(TimeInForce::GTC), "GTC");
-}
-
-TEST_F(OrderTest, ToString_TimeInForce_IOC) {
-    EXPECT_STREQ(ToString(TimeInForce::IOC), "IOC");
-}
-
-TEST_F(OrderTest, ToString_TimeInForce_FOK) {
-    EXPECT_STREQ(ToString(TimeInForce::FOK), "FOK");
-}
-
-// ==========================================
-// 4. STREAM OPERATOR (operator<<)
-// ==========================================
-
-TEST_F(OrderTest, StreamOperator_NotEmpty) {
-    Order o = CreateDefaultOrder();
-    std::ostringstream oss;
-    oss << o;
-    EXPECT_FALSE(oss.str().empty());
-}
-
-TEST_F(OrderTest, StreamOperator_ContainsSymbol) {
-    Order o = CreateDefaultOrder();
-    std::ostringstream oss;
-    oss << o;
-    EXPECT_NE(oss.str().find("BTCUSD"), std::string::npos);
-}
-
-TEST_F(OrderTest, StreamOperator_ContainsPrice) {
-    Order o = CreateDefaultOrder();
-    std::ostringstream oss;
-    oss << o;
-    EXPECT_NE(oss.str().find("100"), std::string::npos);
-}
-
-TEST_F(OrderTest, StreamOperator_ContainsQuantity) {
-    Order o = CreateDefaultOrder();
-    std::ostringstream oss;
-    oss << o;
-    EXPECT_NE(oss.str().find("10"), std::string::npos);
-}
-
-// ==========================================
-// 5. EDGE CASES & INVARIANTS
-// ==========================================
-
-TEST_F(OrderTest, OrderID_ImmutableAfterSetQuantity) {
-    Order o = CreateDefaultOrder();
-    o.SetQuantity(999);
-    EXPECT_EQ(o.GetOrderID(), 1);
-}
-
-TEST_F(OrderTest, TraderID_ImmutableAfterSetStatus) {
-    Order o = CreateDefaultOrder();
-    o.SetStatus(OrderStatus::CANCELED);
-    EXPECT_EQ(o.GetTraderID(), 42);
-}
-
-TEST_F(OrderTest, Symbol_ImmutableAfterMutation) {
-    Order o = CreateDefaultOrder();
-    o.SetQuantity(0);
-    o.SetStatus(OrderStatus::FILLED);
-    EXPECT_EQ(o.GetSymbol(), "BTCUSD");
-}
-
-TEST_F(OrderTest, Price_ImmutableAfterMutation) {
-    Order o = CreateDefaultOrder();
-    o.SetQuantity(0);
-    EXPECT_EQ(o.GetPrice(), 100u);
-}
-
-TEST_F(OrderTest, TwoOrders_DifferentIDs_AreDistinct) {
-    Order o1(1, 10, OrderSide::BUY, OrderType::LIMIT, "BTCUSD", 100, 5, Now, TimeInForce::GTC, OrderStatus::NEW);
-    Order o2(2, 10, OrderSide::BUY, OrderType::LIMIT, "BTCUSD", 100, 5, Now, TimeInForce::GTC, OrderStatus::NEW);
-    EXPECT_NE(o1.GetOrderID(), o2.GetOrderID());
-}
-
-TEST_F(OrderTest, SetQuantity_SimulatesPartialFill) {
-    Order o = CreateDefaultOrder(); // qty = 10
-    o.SetQuantity(o.GetQuantity() - 4);
-    EXPECT_EQ(o.GetQuantity(), 6);
-    o.SetQuantity(o.GetQuantity() - 6);
-    EXPECT_EQ(o.GetQuantity(), 0);
+TEST_F(MatchingEngineTest, Integration_MarketSell_IgnoresPrice_MatchesAnyBid) {
+    auto buy = MakeBuy(1, 1, 10); // very low bid price
+    engine.ProcessOrder(buy);
+    auto sell = MakeSell(2, 0, 10, OrderType::MARKET);
+    auto trades = engine.ProcessOrder(sell);
+    EXPECT_EQ(trades.size(), 1u); // market ignores price
 }

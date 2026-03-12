@@ -59,7 +59,7 @@ void MultisetOrderBook::UpdateQuantity(int order_id, int new_quantity) {
         if (new_quantity>0) {
             bidIt->second->SetStatus(OrderStatus::PARTIALLY_FILLED);
         }
-        else if (new_quantity==0) {
+        else {
             bidIt->second->SetStatus(OrderStatus::FILLED);
             bids.erase(bidIt->second);
             bidLocation.erase(order_id);
@@ -73,7 +73,7 @@ void MultisetOrderBook::UpdateQuantity(int order_id, int new_quantity) {
         if (new_quantity>0) {
             askIt->second->SetStatus(OrderStatus::PARTIALLY_FILLED);
         }
-        else if (new_quantity==0) {
+        else {
             askIt->second->SetStatus(OrderStatus::FILLED);
             asks.erase(askIt->second);
             askLocation.erase(order_id);
@@ -120,7 +120,7 @@ bool MultisetOrderBook::IsAskEmpty() const {
 
 bool MultisetOrderBook::CanFillQuantityAsks(int Quantity, int Price) const {
 
-    for (auto order : asks) {
+    for (auto &order : asks) {
         if (order.GetPrice() > Price) {
             break;
         }
@@ -135,8 +135,8 @@ bool MultisetOrderBook::CanFillQuantityAsks(int Quantity, int Price) const {
 
 bool MultisetOrderBook::CanFillQuantityBids(int Quantity, int Price) const {
 
-    for (auto order : bids) {
-        if (order.GetPrice() > Price) {
+    for (auto &order : bids) {
+        if (order.GetPrice() < Price) {
             break;
         }
         Quantity-=std::min(Quantity,order.GetQuantity());

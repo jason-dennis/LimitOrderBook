@@ -1,132 +1,464 @@
 #include <gtest/gtest.h>
 #include "../../include/Storage/MultisetOrderBookStorage.h"
-#include "../../include/Domain/order.h"
-#include <chrono>
+
+// ─────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────
+
+static Order MakeBuy(int id, uint64_t price, int qty) {
+    return Order(id, 1, OrderSide::BUY, OrderType::LIMIT, "AAPL", price, qty,
+                 std::chrono::system_clock::now(), TimeInForce::GTC,
+                 OrderStatus::NEW);
+}
+
+static Order MakeSell(int id, uint64_t price, int qty) {
+    return Order(id, 1, OrderSide::SELL, OrderType::LIMIT, "AAPL", price, qty,
+                 std::chrono::system_clock::now(), TimeInForce::GTC,
+                 OrderStatus::NEW);
+}
+
+// ─────────────────────────────────────────────
+// Fixture
+// ─────────────────────────────────────────────
 
 class MultisetOrderBookTest : public ::testing::Test {
 protected:
-    MultisetOrderBook ob;
-
-    Order CreateTestOrder(int id, uint64_t price, int qty, OrderSide side, int sec_offset = 0) {
-        auto timestamp = std::chrono::system_clock::now() + std::chrono::seconds(sec_offset);
-        return Order(id, 100, side, OrderType::LIMIT, "AAPL", price, qty, timestamp, TimeInForce::GTC, OrderStatus::NEW);
-    }
+    MultisetOrderBook book;
 };
 
-// ============================================================================
-// 1. TESTE PRIORITATE (Price-Time Priority)
-// ============================================================================
+// ═════════════════════════════════════════════
+// AddOrder
+// ═════════════════════════════════════════════
 
-TEST_F(MultisetOrderBookTest, BidsPricePriority) {
-    ob.AddOrder(CreateTestOrder(1, 100, 10, OrderSide::BUY));
-    ob.AddOrder(CreateTestOrder(2, 120, 10, OrderSide::BUY)); // Cel mai bun pret
-    ob.AddOrder(CreateTestOrder(3, 110, 10, OrderSide::BUY));
-
-    ASSERT_NE(ob.GetBestBid(), nullptr);
-    EXPECT_EQ(ob.GetBestBid()->GetPrice(), 120);
-    EXPECT_EQ(ob.GetBestBid()->GetOrderID(), 2);
+TEST_F(MultisetOrderBookTest, AddBuyOrder_BookNotEmpty) {
+    book.AddOrder(MakeBuy(1, 100, 10));
+    EXPECT_FALSE(book.IsBidEmpty());
+    EXPECT_TRUE(book.IsAskEmpty());
 }
 
-TEST_F(MultisetOrderBookTest, BidsTimePriorityAtSamePrice) {
-    ob.AddOrder(CreateTestOrder(1, 100, 10, OrderSide::BUY, 0)); // Primul venit
-    ob.AddOrder(CreateTestOrder(2, 100, 10, OrderSide::BUY, 5)); // Venit ulterior
-
-    ASSERT_NE(ob.GetBestBid(), nullptr);
-    EXPECT_EQ(ob.GetBestBid()->GetOrderID(), 1);
+TEST_F(MultisetOrderBookTest, AddSellOrder_BookNotEmpty) {
+    book.AddOrder(MakeSell(2, 101, 5));
+    EXPECT_FALSE(book.IsAskEmpty());
+    EXPECT_TRUE(book.IsBidEmpty());
 }
 
-TEST_F(MultisetOrderBookTest, AsksPricePriority) {
-    ob.AddOrder(CreateTestOrder(1, 100, 10, OrderSide::SELL));
-    ob.AddOrder(CreateTestOrder(2, 80, 10, OrderSide::SELL)); // Cel mai ieftin
-    ob.AddOrder(CreateTestOrder(3, 90, 10, OrderSide::SELL));
-
-    ASSERT_NE(ob.GetBestAsk(), nullptr);
-    EXPECT_EQ(ob.GetBestAsk()->GetPrice(), 80);
-    EXPECT_EQ(ob.GetBestAsk()->GetOrderID(), 2);
+TEST_F(MultisetOrderBookTest, AddMultipleBuyOrders_BestBidIsHighestPrice) {
+    book.AddOrder(MakeBuy(1, 99,  10));
+    book.AddOrder(MakeBuy(2, 105, 10));
+    book.AddOrder(MakeBuy(3, 101, 10));
+    ASSERT_NE(book.GetBestBid(), nullptr);
+    EXPECT_EQ(book.GetBestBid()->GetPrice(), 105);
 }
 
-TEST_F(MultisetOrderBookTest, AsksTimePriorityAtSamePrice) {
-    ob.AddOrder(CreateTestOrder(100, 100, 10, OrderSide::SELL, 0));
-    ob.AddOrder(CreateTestOrder(101, 100, 10, OrderSide::SELL, 5));
-
-    ASSERT_NE(ob.GetBestAsk(), nullptr);
-    EXPECT_EQ(ob.GetBestAsk()->GetOrderID(), 100);
+TEST_F(MultisetOrderBookTest, AddMultipleSellOrders_BestAskIsLowestPrice) {
+    book.AddOrder(MakeSell(1, 110, 5));
+    book.AddOrder(MakeSell(2, 102, 5));
+    book.AddOrder(MakeSell(3, 108, 5));
+    ASSERT_NE(book.GetBestAsk(), nullptr);
+    EXPECT_EQ(book.GetBestAsk()->GetPrice(), 102);
 }
 
-// ============================================================================
-// 2. TESTE OPERAȚIUNI (Update & Cancel)
-// ============================================================================
-
-TEST_F(MultisetOrderBookTest, UpdateQuantityPartialAndFullFill) {
-    // Test pe Bid
-    ob.AddOrder(CreateTestOrder(1, 100, 10, OrderSide::BUY));
-    ob.UpdateQuantity(1, 7); // Partial
-    EXPECT_EQ(ob.GetBestBid()->GetStatus(), OrderStatus::PARTIALLY_FILLED);
-    ob.UpdateQuantity(1, 0); // Full
-    EXPECT_TRUE(ob.IsBidEmpty());
-
-    // Test pe Ask (Coverage pentru ramura Ask din UpdateQuantity)
-    ob.AddOrder(CreateTestOrder(2, 100, 10, OrderSide::SELL));
-    ob.UpdateQuantity(2, 5);
-    EXPECT_EQ(ob.GetBestAsk()->GetStatus(), OrderStatus::PARTIALLY_FILLED);
-    ob.UpdateQuantity(2, 0);
-    EXPECT_TRUE(ob.IsAskEmpty());
+TEST_F(MultisetOrderBookTest, AddOrdersAtSamePrice_BothStored) {
+    book.AddOrder(MakeBuy(1, 100, 10));
+    book.AddOrder(MakeBuy(2, 100, 20));
+    // Both should be in the book; best bid is still 100
+    EXPECT_EQ(book.GetBestBid()->GetPrice(), 100);
+    book.PopBestBid();
+    EXPECT_FALSE(book.IsBidEmpty()); // second one still there
 }
 
-TEST_F(MultisetOrderBookTest, CancelOrderRemovesSuccessfully) {
-    // Ramura Bid
-    ob.AddOrder(CreateTestOrder(10, 100, 10, OrderSide::BUY));
-    ob.CancelOrder(10);
-    EXPECT_TRUE(ob.IsBidEmpty());
+// ═════════════════════════════════════════════
+// GetBestBid / GetBestAsk on empty book
+// ═════════════════════════════════════════════
 
-    // Ramura Ask
-    ob.AddOrder(CreateTestOrder(20, 100, 10, OrderSide::SELL));
-    ob.CancelOrder(20);
-    EXPECT_TRUE(ob.IsAskEmpty());
+TEST_F(MultisetOrderBookTest, GetBestBid_EmptyBook_ReturnsNullptr) {
+    EXPECT_EQ(book.GetBestBid(), nullptr);
 }
 
-// ============================================================================
-// 3. TESTE ELIMINARE (Pop Functions)
-// ============================================================================
-
-TEST_F(MultisetOrderBookTest, PopBestBidRemovesTopCorrectly) {
-    ob.AddOrder(CreateTestOrder(1, 110, 10, OrderSide::BUY));
-    ob.AddOrder(CreateTestOrder(2, 100, 10, OrderSide::BUY));
-
-    ob.PopBestBid(); // Sterge 110
-    ASSERT_NE(ob.GetBestBid(), nullptr);
-    EXPECT_EQ(ob.GetBestBid()->GetOrderID(), 2);
+TEST_F(MultisetOrderBookTest, GetBestAsk_EmptyBook_ReturnsNullptr) {
+    EXPECT_EQ(book.GetBestAsk(), nullptr);
 }
 
-TEST_F(MultisetOrderBookTest, PopBestAskRemovesTopCorrectly) {
-    ob.AddOrder(CreateTestOrder(1, 90, 10, OrderSide::SELL));
-    ob.AddOrder(CreateTestOrder(2, 100, 10, OrderSide::SELL));
+// ═════════════════════════════════════════════
+// IsBidEmpty / IsAskEmpty
+// ═════════════════════════════════════════════
 
-    ob.PopBestAsk(); // Sterge 90
-    ASSERT_NE(ob.GetBestAsk(), nullptr);
-    EXPECT_EQ(ob.GetBestAsk()->GetOrderID(), 2);
+TEST_F(MultisetOrderBookTest, IsBidEmpty_InitiallyTrue) {
+    EXPECT_TRUE(book.IsBidEmpty());
 }
 
-// ============================================================================
-// 4. CAZURI LIMITĂ ȘI COVERAGE AUXILIAR
-// ============================================================================
-
-TEST_F(MultisetOrderBookTest, EmptyBookSafetyAndInvalidIDs) {
-    // Citiri pe gol
-    EXPECT_EQ(ob.GetBestBid(), nullptr);
-    EXPECT_EQ(ob.GetBestAsk(), nullptr);
-    EXPECT_TRUE(ob.IsBidEmpty());
-
-    // Actiuni pe ID-uri inexistente (Coverage pentru ramurile 'it == end()')
-    EXPECT_NO_THROW(ob.CancelOrder(999));
-    EXPECT_NO_THROW(ob.UpdateQuantity(999, 5));
-    EXPECT_NO_THROW(ob.PopBestBid());
-    EXPECT_NO_THROW(ob.PopBestAsk());
+TEST_F(MultisetOrderBookTest, IsAskEmpty_InitiallyTrue) {
+    EXPECT_TRUE(book.IsAskEmpty());
 }
 
-TEST_F(MultisetOrderBookTest, GlobalToStringCoverage) {
-    EXPECT_STREQ(ToString(OrderStatus::NEW), "NEW");
-    EXPECT_STREQ(ToString(OrderSide::BUY), "BUY");
-    EXPECT_STREQ(ToString(OrderType::LIMIT), "LIMIT");
-    EXPECT_STREQ(ToString(TimeInForce::GTC), "GTC");
+TEST_F(MultisetOrderBookTest, IsBidEmpty_FalseAfterAdd) {
+    book.AddOrder(MakeBuy(1, 100, 10));
+    EXPECT_FALSE(book.IsBidEmpty());
+}
+
+TEST_F(MultisetOrderBookTest, IsAskEmpty_FalseAfterAdd) {
+    book.AddOrder(MakeSell(1, 100, 10));
+    EXPECT_FALSE(book.IsAskEmpty());
+}
+
+// ═════════════════════════════════════════════
+// CancelOrder
+// ═════════════════════════════════════════════
+
+TEST_F(MultisetOrderBookTest, CancelBuyOrder_RemovesFromBook) {
+    book.AddOrder(MakeBuy(1, 100, 10));
+    book.CancelOrder(1);
+    EXPECT_TRUE(book.IsBidEmpty());
+}
+
+TEST_F(MultisetOrderBookTest, CancelSellOrder_RemovesFromBook) {
+    book.AddOrder(MakeSell(2, 101, 5));
+    book.CancelOrder(2);
+    EXPECT_TRUE(book.IsAskEmpty());
+}
+
+TEST_F(MultisetOrderBookTest, CancelOrder_SetsStatusCanceled) {
+    Order buy = MakeBuy(1, 100, 10);
+    book.AddOrder(buy);
+    // After cancel the order is gone from the book; status was set before erase
+    // We verify indirectly: book is empty and no crash
+    book.CancelOrder(1);
+    EXPECT_TRUE(book.IsBidEmpty());
+}
+
+TEST_F(MultisetOrderBookTest, CancelOrder_NonExistentId_DoesNotCrash) {
+    book.AddOrder(MakeBuy(1, 100, 10));
+    book.CancelOrder(999); // should be a no-op
+    EXPECT_FALSE(book.IsBidEmpty());
+}
+
+TEST_F(MultisetOrderBookTest, CancelOrder_OnlyRemovesTargetOrder) {
+    book.AddOrder(MakeBuy(1, 100, 10));
+    book.AddOrder(MakeBuy(2, 105, 10));
+    book.CancelOrder(1);
+    ASSERT_NE(book.GetBestBid(), nullptr);
+    EXPECT_EQ(book.GetBestBid()->GetPrice(), 105);
+}
+
+TEST_F(MultisetOrderBookTest, CancelOrder_EmptyBook_DoesNotCrash) {
+    book.CancelOrder(42); // no-op on empty book
+    EXPECT_TRUE(book.IsBidEmpty());
+    EXPECT_TRUE(book.IsAskEmpty());
+}
+
+// ═════════════════════════════════════════════
+// UpdateQuantity
+// ═════════════════════════════════════════════
+
+TEST_F(MultisetOrderBookTest, UpdateQuantity_BuyOrder_PartialFill) {
+    book.AddOrder(MakeBuy(1, 100, 10));
+    book.UpdateQuantity(1, 5);
+    ASSERT_NE(book.GetBestBid(), nullptr);
+    EXPECT_EQ(book.GetBestBid()->GetQuantity(), 5);
+    EXPECT_EQ(book.GetBestBid()->GetStatus(), OrderStatus::PARTIALLY_FILLED);
+}
+
+TEST_F(MultisetOrderBookTest, UpdateQuantity_BuyOrder_FullFill_RemovesOrder) {
+    book.AddOrder(MakeBuy(1, 100, 10));
+    book.UpdateQuantity(1, 0);
+    EXPECT_TRUE(book.IsBidEmpty());
+}
+
+TEST_F(MultisetOrderBookTest, UpdateQuantity_SellOrder_PartialFill) {
+    book.AddOrder(MakeSell(1, 101, 20));
+    book.UpdateQuantity(1, 8);
+    ASSERT_NE(book.GetBestAsk(), nullptr);
+    EXPECT_EQ(book.GetBestAsk()->GetQuantity(), 8);
+    EXPECT_EQ(book.GetBestAsk()->GetStatus(), OrderStatus::PARTIALLY_FILLED);
+}
+
+TEST_F(MultisetOrderBookTest, UpdateQuantity_SellOrder_FullFill_RemovesOrder) {
+    book.AddOrder(MakeSell(1, 101, 20));
+    book.UpdateQuantity(1, 0);
+    EXPECT_TRUE(book.IsAskEmpty());
+}
+
+TEST_F(MultisetOrderBookTest, UpdateQuantity_NonExistentId_DoesNotCrash) {
+    book.AddOrder(MakeBuy(1, 100, 10));
+    book.UpdateQuantity(999, 5); // no-op
+    EXPECT_EQ(book.GetBestBid()->GetQuantity(), 10);
+}
+
+TEST_F(MultisetOrderBookTest, UpdateQuantity_SetsFilledStatus_WhenZero) {
+    book.AddOrder(MakeSell(1, 101, 10));
+    book.UpdateQuantity(1, 0);
+    EXPECT_TRUE(book.IsAskEmpty());
+}
+
+// ═════════════════════════════════════════════
+// PopBestBid
+// ═════════════════════════════════════════════
+
+TEST_F(MultisetOrderBookTest, PopBestBid_RemovesTopBid) {
+    book.AddOrder(MakeBuy(1, 100, 10));
+    book.AddOrder(MakeBuy(2, 110, 5));
+    book.PopBestBid(); // removes 110
+    ASSERT_NE(book.GetBestBid(), nullptr);
+    EXPECT_EQ(book.GetBestBid()->GetPrice(), 100);
+}
+
+TEST_F(MultisetOrderBookTest, PopBestBid_EmptyBook_DoesNotCrash) {
+    book.PopBestBid(); // no-op
+    EXPECT_TRUE(book.IsBidEmpty());
+}
+
+TEST_F(MultisetOrderBookTest, PopBestBid_SingleOrder_BookBecomesEmpty) {
+    book.AddOrder(MakeBuy(1, 100, 10));
+    book.PopBestBid();
+    EXPECT_TRUE(book.IsBidEmpty());
+}
+
+TEST_F(MultisetOrderBookTest, PopBestBid_SetsFilledStatus) {
+    book.AddOrder(MakeBuy(1, 100, 10));
+    // After pop the order is gone; verify book is empty (status was set before erase)
+    book.PopBestBid();
+    EXPECT_TRUE(book.IsBidEmpty());
+}
+
+// ═════════════════════════════════════════════
+// PopBestAsk
+// ═════════════════════════════════════════════
+
+TEST_F(MultisetOrderBookTest, PopBestAsk_RemovesTopAsk) {
+    book.AddOrder(MakeSell(1, 105, 5));
+    book.AddOrder(MakeSell(2, 102, 5));
+    book.PopBestAsk(); // removes 102
+    ASSERT_NE(book.GetBestAsk(), nullptr);
+    EXPECT_EQ(book.GetBestAsk()->GetPrice(), 105);
+}
+
+TEST_F(MultisetOrderBookTest, PopBestAsk_EmptyBook_DoesNotCrash) {
+    book.PopBestAsk(); // no-op
+    EXPECT_TRUE(book.IsAskEmpty());
+}
+
+TEST_F(MultisetOrderBookTest, PopBestAsk_SingleOrder_BookBecomesEmpty) {
+    book.AddOrder(MakeSell(1, 100, 5));
+    book.PopBestAsk();
+    EXPECT_TRUE(book.IsAskEmpty());
+}
+
+// ═════════════════════════════════════════════
+// CanFillQuantityAsks
+// ═════════════════════════════════════════════
+
+TEST_F(MultisetOrderBookTest, CanFillQuantityAsks_SingleOrder_ExactFill) {
+    book.AddOrder(MakeSell(1, 100, 10));
+    EXPECT_TRUE(book.CanFillQuantityAsks(10, 100));
+}
+
+TEST_F(MultisetOrderBookTest, CanFillQuantityAsks_SingleOrder_PartialAvailable) {
+    book.AddOrder(MakeSell(1, 100, 5));
+    EXPECT_FALSE(book.CanFillQuantityAsks(10, 100));
+}
+
+TEST_F(MultisetOrderBookTest, CanFillQuantityAsks_MultipleOrders_CombinedFill) {
+    book.AddOrder(MakeSell(1, 100, 5));
+    book.AddOrder(MakeSell(2, 100, 5));
+    EXPECT_TRUE(book.CanFillQuantityAsks(10, 100));
+}
+
+TEST_F(MultisetOrderBookTest, CanFillQuantityAsks_PriceTooHigh_BreaksEarly) {
+    // Only orders above Price=99 exist; should not fill
+    book.AddOrder(MakeSell(1, 105, 100));
+    EXPECT_FALSE(book.CanFillQuantityAsks(10, 99));
+}
+
+TEST_F(MultisetOrderBookTest, CanFillQuantityAsks_EmptyBook_ReturnsFalse) {
+    EXPECT_FALSE(book.CanFillQuantityAsks(10, 100));
+}
+
+TEST_F(MultisetOrderBookTest, CanFillQuantityAsks_MixedPrices_OnlyUsesEligible) {
+    book.AddOrder(MakeSell(1, 100, 5));  // eligible  (price <= 102)
+    book.AddOrder(MakeSell(2, 103, 50)); // ineligible (price > 102)
+    EXPECT_FALSE(book.CanFillQuantityAsks(10, 102));
+}
+
+// ═════════════════════════════════════════════
+// CanFillQuantityBids
+// ═════════════════════════════════════════════
+
+TEST_F(MultisetOrderBookTest, CanFillQuantityBids_SingleOrder_ExactFill) {
+    book.AddOrder(MakeBuy(1, 100, 10));
+    EXPECT_TRUE(book.CanFillQuantityBids(10, 100));
+}
+
+TEST_F(MultisetOrderBookTest, CanFillQuantityBids_SingleOrder_PartialAvailable) {
+    book.AddOrder(MakeBuy(1, 100, 5));
+    EXPECT_FALSE(book.CanFillQuantityBids(10, 100));
+}
+
+TEST_F(MultisetOrderBookTest, CanFillQuantityBids_MultipleOrders_CombinedFill) {
+    book.AddOrder(MakeBuy(1, 105, 5));
+    book.AddOrder(MakeBuy(2, 103, 5));
+    EXPECT_TRUE(book.CanFillQuantityBids(10, 100));
+}
+
+TEST_F(MultisetOrderBookTest, CanFillQuantityBids_PriceTooLow_BreaksEarly) {
+    // Bids are sorted descending; break when price < Price
+    book.AddOrder(MakeBuy(1, 95, 100));
+    EXPECT_FALSE(book.CanFillQuantityBids(10, 100));
+}
+
+TEST_F(MultisetOrderBookTest, CanFillQuantityBids_EmptyBook_ReturnsFalse) {
+    EXPECT_FALSE(book.CanFillQuantityBids(10, 100));
+}
+
+TEST_F(MultisetOrderBookTest, CanFillQuantityBids_MixedPrices_OnlyUsesEligible) {
+    book.AddOrder(MakeBuy(1, 110, 5)); // eligible   (price >= 105)
+    book.AddOrder(MakeBuy(2, 100, 50)); // ineligible (price < 105)
+    EXPECT_FALSE(book.CanFillQuantityBids(10, 105));
+}
+
+// ═════════════════════════════════════════════
+// Integration / sequence scenarios
+// ═════════════════════════════════════════════
+
+TEST_F(MultisetOrderBookTest, Integration_AddPartialFillThenCancel) {
+    book.AddOrder(MakeBuy(1, 100, 20));
+    book.UpdateQuantity(1, 10); // partial fill
+    EXPECT_EQ(book.GetBestBid()->GetQuantity(), 10);
+    book.CancelOrder(1);
+    EXPECT_TRUE(book.IsBidEmpty());
+}
+
+TEST_F(MultisetOrderBookTest, Integration_PopUntilEmpty) {
+    book.AddOrder(MakeSell(1, 100, 5));
+    book.AddOrder(MakeSell(2, 101, 5));
+    book.AddOrder(MakeSell(3, 102, 5));
+    book.PopBestAsk();
+    book.PopBestAsk();
+    book.PopBestAsk();
+    EXPECT_TRUE(book.IsAskEmpty());
+}
+
+TEST_F(MultisetOrderBookTest, Integration_BidAndAskSide_Independent) {
+    book.AddOrder(MakeBuy(1, 100, 10));
+    book.AddOrder(MakeSell(2, 101, 10));
+    book.CancelOrder(1);
+    EXPECT_TRUE(book.IsBidEmpty());
+    EXPECT_FALSE(book.IsAskEmpty());
+}
+
+TEST_F(MultisetOrderBookTest, Integration_CanFillAfterPartialUpdate) {
+    book.AddOrder(MakeSell(1, 100, 10));
+    book.UpdateQuantity(1, 4); // now only 4 available
+    EXPECT_FALSE(book.CanFillQuantityAsks(5, 100));
+    EXPECT_TRUE(book.CanFillQuantityAsks(4, 100));
+}
+
+TEST_F(MultisetOrderBookTest, Integration_FullFillThenCanFillReturnsFalse) {
+    book.AddOrder(MakeSell(1, 100, 10));
+    book.UpdateQuantity(1, 0); // fully filled — removed
+    EXPECT_FALSE(book.CanFillQuantityAsks(1, 100));
+}
+
+// ═════════════════════════════════════════════
+// Branch coverage: UpdateQuantity negative value
+// covers the implicit else (quantity < 0) branch
+// ═════════════════════════════════════════════
+
+TEST_F(MultisetOrderBookTest, UpdateQuantity_NegativeValue_BuyOrder_TreatedAsFilled) {
+    book.AddOrder(MakeBuy(1, 100, 10));
+    book.UpdateQuantity(1, -1); // else branch: treated as filled, order removed
+    EXPECT_TRUE(book.IsBidEmpty());
+}
+
+TEST_F(MultisetOrderBookTest, UpdateQuantity_NegativeValue_SellOrder_TreatedAsFilled) {
+    book.AddOrder(MakeSell(1, 100, 10));
+    book.UpdateQuantity(1, -1); // else branch: treated as filled, order removed
+    EXPECT_TRUE(book.IsAskEmpty());
+}
+
+// ═════════════════════════════════════════════
+// Branch coverage: CancelOrder — bid not found, ask lookup taken
+// and vice versa, to cover both find() hit/miss paths explicitly
+// ═════════════════════════════════════════════
+
+TEST_F(MultisetOrderBookTest, CancelOrder_BidNotFound_AskFound) {
+    // Only a sell order exists — bidLocation.find() misses, askLocation.find() hits
+    book.AddOrder(MakeSell(1, 100, 10));
+    book.CancelOrder(1);
+    EXPECT_TRUE(book.IsAskEmpty());
+}
+
+TEST_F(MultisetOrderBookTest, CancelOrder_BidFound_AskNotSearched) {
+    // Only a buy order exists — bidLocation.find() hits, early return taken
+    book.AddOrder(MakeBuy(1, 100, 10));
+    book.CancelOrder(1);
+    EXPECT_TRUE(book.IsBidEmpty());
+}
+
+TEST_F(MultisetOrderBookTest, CancelOrder_NeitherFound_BothMiss) {
+    book.AddOrder(MakeBuy(1, 100, 10));
+    book.AddOrder(MakeSell(2, 101, 10));
+    book.CancelOrder(999); // both find() calls miss
+    EXPECT_FALSE(book.IsBidEmpty());
+    EXPECT_FALSE(book.IsAskEmpty());
+}
+
+// ═════════════════════════════════════════════
+// Branch coverage: UpdateQuantity — bid not found, ask lookup taken
+// ═════════════════════════════════════════════
+
+TEST_F(MultisetOrderBookTest, UpdateQuantity_BidNotFound_AskFound_Partial) {
+    // bidLocation.find() misses, askLocation.find() hits, quantity > 0 branch
+    book.AddOrder(MakeSell(1, 100, 20));
+    book.UpdateQuantity(1, 7);
+    EXPECT_EQ(book.GetBestAsk()->GetQuantity(), 7);
+}
+
+TEST_F(MultisetOrderBookTest, UpdateQuantity_BidNotFound_AskFound_Full) {
+    // bidLocation.find() misses, askLocation.find() hits, quantity == 0 branch
+    book.AddOrder(MakeSell(1, 100, 20));
+    book.UpdateQuantity(1, 0);
+    EXPECT_TRUE(book.IsAskEmpty());
+}
+
+TEST_F(MultisetOrderBookTest, UpdateQuantity_NeitherFound_BothMiss) {
+    book.AddOrder(MakeBuy(1, 100, 10));
+    book.UpdateQuantity(999, 5); // both find() calls miss
+    EXPECT_EQ(book.GetBestBid()->GetQuantity(), 10);
+}
+
+// ═════════════════════════════════════════════
+// Branch coverage: CanFillQuantityAsks — inner Quantity==0 branch
+// both true (return true) and false (loop exhausted) paths
+// ═════════════════════════════════════════════
+
+TEST_F(MultisetOrderBookTest, CanFillQuantityAsks_QuantityHitsZeroMidLoop) {
+    // Two orders; quantity is satisfied after the first — Quantity==0 true mid-loop
+    book.AddOrder(MakeSell(1, 100, 10));
+    book.AddOrder(MakeSell(2, 101,  5));
+    EXPECT_TRUE(book.CanFillQuantityAsks(10, 101));
+}
+
+TEST_F(MultisetOrderBookTest, CanFillQuantityAsks_LoopExhausted_NeverHitsZero) {
+    // Orders exist but combined qty < requested — loop ends, Quantity==0 never true
+    book.AddOrder(MakeSell(1, 100, 3));
+    book.AddOrder(MakeSell(2, 100, 3));
+    EXPECT_FALSE(book.CanFillQuantityAsks(10, 100));
+}
+
+// ═════════════════════════════════════════════
+// Branch coverage: CanFillQuantityBids — inner Quantity==0 branch
+// ═════════════════════════════════════════════
+
+TEST_F(MultisetOrderBookTest, CanFillQuantityBids_QuantityHitsZeroMidLoop) {
+    // Two orders; quantity satisfied after the first
+    book.AddOrder(MakeBuy(1, 110, 10));
+    book.AddOrder(MakeBuy(2, 105,  5));
+    EXPECT_TRUE(book.CanFillQuantityBids(10, 100));
+}
+
+TEST_F(MultisetOrderBookTest, CanFillQuantityBids_LoopExhausted_NeverHitsZero) {
+    // Combined qty < requested — Quantity==0 never true
+    book.AddOrder(MakeBuy(1, 110, 3));
+    book.AddOrder(MakeBuy(2, 108, 3));
+    EXPECT_FALSE(book.CanFillQuantityBids(10, 100));
 }

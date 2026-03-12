@@ -39,7 +39,9 @@ include(GoogleTest)
 
 add_executable(run_tests
         Tests/Storage/test_multiset_storage.cpp
+        Tests/Domain/test_order.cpp
         Tests/Engine/TestMatchingEngine.cpp
+
 )
 target_link_libraries(run_tests PRIVATE trading_lib_cov gtest_main)
 

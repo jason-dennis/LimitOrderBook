@@ -15,7 +15,7 @@ constexpr const char* ToString(OrderSide side) {
     return names[static_cast<int>(side)];
 }
 constexpr const char* ToString(OrderType type) {
-    constexpr const char* names[] = {"MARKET", "LIMIT", "STOP"};
+    constexpr const char* names[] = {"MARKET", "LIMIT", "STOP","STOP_LIMIT"};
     return names[static_cast<int>(type)];
 }
 constexpr const char* ToString(TimeInForce tif) {
@@ -44,7 +44,7 @@ Order::Order(int Order_ID, int Trader_ID, OrderSide Side,
      * Performs validation on price, quantity, and symbol to ensure data integrity.
      * * @throw std::invalid_argument If price <= 0, quantity <= 0, or symbol is empty.
      */
-    if (Price_ == 0) {
+    if (Price_ == 0 and Type_ != OrderType::MARKET) {
         throw std::invalid_argument("Price must be higher than 0.0");
     }
     if (Quantity_<= 0) {
