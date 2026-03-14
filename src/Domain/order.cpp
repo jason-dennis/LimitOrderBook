@@ -6,22 +6,6 @@
 #include <stdexcept>
 #include <iomanip>
 
-constexpr const char* ToString(OrderStatus status) {
-    constexpr const char* names[] = {"NEW", "PARTIALLY_FILLED", "FILLED", "CANCELED", "REJECTED"};
-    return names[static_cast<int>(status)];
-}
-constexpr const char* ToString(OrderSide side) {
-    constexpr const char* names[] = {"BUY", "SELL"};
-    return names[static_cast<int>(side)];
-}
-constexpr const char* ToString(OrderType type) {
-    constexpr const char* names[] = {"MARKET", "LIMIT", "STOP","STOP_LIMIT"};
-    return names[static_cast<int>(type)];
-}
-constexpr const char* ToString(TimeInForce tif) {
-    constexpr const char* names[] = {"GTC", "IOC", "FOK"};
-    return names[static_cast<int>(tif)];
-}
 
 Order::Order(int Order_ID, int Trader_ID, OrderSide Side,
              OrderType Type,

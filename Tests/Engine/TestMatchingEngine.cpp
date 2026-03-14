@@ -403,3 +403,45 @@ TEST_F(MatchingEngineTest, Integration_MarketSell_IgnoresPrice_MatchesAnyBid) {
     auto trades = engine.ProcessOrder(sell);
     EXPECT_EQ(trades.size(), 1u); // market ignores price
 }
+
+// ═════════════════════════════════════════════
+// UpdateQuantity correctness
+// ═════════════════════════════════════════════
+
+TEST_F(MatchingEngineTest, SellLimit_GTC_PartialMatch_BidQuantityUpdatedCorrectly) {
+    auto buy = MakeBuy(1, 100, 10);
+    engine.ProcessOrder(buy);
+    auto sell = MakeSell(2, 100, 4);
+    auto trades = engine.ProcessOrder(sell);
+    EXPECT_EQ(trades.size(), 1u);
+    EXPECT_EQ(trades[0].GetQuantity(), 4);
+    // bid-ul trebuie sa ramana cu 6, nu sa fie eliminat
+    EXPECT_FALSE(book.IsBidEmpty());
+    EXPECT_EQ(book.GetBestBid()->GetQuantity(), 6);
+}
+
+TEST_F(MatchingEngineTest, BuyLimit_GTC_PartialMatch_AskQuantityUpdatedCorrectly) {
+    auto sell = MakeSell(1, 100, 10);
+    engine.ProcessOrder(sell);
+    auto buy = MakeBuy(2, 100, 4);
+    auto trades = engine.ProcessOrder(buy);
+    EXPECT_EQ(trades.size(), 1u);
+    EXPECT_EQ(trades[0].GetQuantity(), 4);
+    // ask-ul trebuie sa ramana cu 6, nu sa fie eliminat
+    EXPECT_FALSE(book.IsAskEmpty());
+    EXPECT_EQ(book.GetBestAsk()->GetQuantity(), 6);
+}
+
+TEST_F(MatchingEngineTest, BuyLimit_GTC_MultipleAsks_PopAndUpdateInSameOrder) {
+    auto sell1 = MakeSell(1, 100, 3);  // o sa fie PopBest
+    auto sell2 = MakeSell(2, 100, 10); // o sa fie UpdateQuantity
+    engine.ProcessOrder(sell1);
+    engine.ProcessOrder(sell2);
+    auto buy = MakeBuy(3, 100, 8);
+    auto trades = engine.ProcessOrder(buy);
+    EXPECT_EQ(trades.size(), 2u);
+    EXPECT_EQ(trades[0].GetQuantity(), 3); // primul ask consumat complet
+    EXPECT_EQ(trades[1].GetQuantity(), 5); // al doilea partial
+    EXPECT_FALSE(book.IsAskEmpty());
+    EXPECT_EQ(book.GetBestAsk()->GetQuantity(), 5); // ramane 5 din sell2
+}

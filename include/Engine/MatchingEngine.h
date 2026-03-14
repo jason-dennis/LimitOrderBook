@@ -8,19 +8,19 @@
 #include "../../include/Domain/trade.h"
 #include <vector>
 #include <deque>
-#include <unordered_map>
+
 
 class MatchingEngine {
 private:
-    std::unordered_map<std::string, std::unique_ptr<IOrderBook>>* OrderBook_;
+    IOrderBook& OrderBook_;
     std::deque<Trade>HistoryTrades_;
 public:
     ~MatchingEngine()=default;
 
-    MatchingEngine(std::unordered_map<std::string, std::unique_ptr<IOrderBook>>* OrderBook):OrderBook_(OrderBook){};
+    MatchingEngine(IOrderBook& OrderBook):OrderBook_(OrderBook){};
 
     std::vector<Trade> ProcessOrder(Order& NewOrder);
-    const std::unordered_map<std::string, std::unique_ptr<IOrderBook>>* GetOrderBook() const { return OrderBook_; }
+    const IOrderBook& GetOrderBook() const { return OrderBook_; }
     void MatchOrderBid(Order &NewOrder, std::vector<Trade>& Trades);
     void MatchOrderAsk(Order &NewOrder, std::vector<Trade>& Trades);
 
@@ -28,7 +28,6 @@ public:
     std::vector<Trade> ProcessBuyMarket(Order& NewOrder);
     std::vector<Trade> ProcessSellLimit(Order& NewOrder);
     std::vector<Trade> ProcessSellMarket(Order& NewOrder);
-    IOrderBook& GetOrderBook(const std::string& Symbol);
 
 };
 
