@@ -118,7 +118,7 @@ bool MultisetOrderBook::IsAskEmpty() const {
     return asks.empty();
 }
 
-bool MultisetOrderBook::CanFillQuantityAsks(int Quantity, int Price) const {
+bool MultisetOrderBook::CanFillQuantityAsks(int Quantity, uint64_t Price) const {
 
     for (auto &order : asks) {
         if (order.GetPrice() > Price) {
@@ -133,7 +133,7 @@ bool MultisetOrderBook::CanFillQuantityAsks(int Quantity, int Price) const {
     return false;
 }
 
-bool MultisetOrderBook::CanFillQuantityBids(int Quantity, int Price) const {
+bool MultisetOrderBook::CanFillQuantityBids(int Quantity, uint64_t Price) const {
 
     for (auto &order : bids) {
         if (order.GetPrice() < Price) {

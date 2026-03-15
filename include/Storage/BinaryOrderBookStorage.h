@@ -68,42 +68,58 @@ private:
         bool IsEmpty() const {
             return head_ == nullptr;
         }
+
+        Node* GetHead() const{
+            return head_;
+        }
     };
 
-    //max price 200,000 , tick=0.001 => max value =200,000,000
-    const int DIM_level1 = 3'125'000; // 200,000,000/64 = 3,125,000
-    const int DIM_level2 = 48'828;  // 3,125,000/64 = ~48,828
-    const int DIM_level3 = 762; // 48,828/64 = ~762
-    const int DIM_level4 = 11; // 762/64 = ~11
+    const int DIM_level1 = 312'505;
+    const int DIM_level2 = 48'885;
+    const int DIM_level3 = 80;
+    const int DIM_level4 = 3;
 
-    std::vector<uint64_t>level1_;
-    std::vector<uint64_t>level2_;
-    std::vector<uint64_t>level3_;
-    std::vector<uint64_t>level4_;
+    std::vector<uint64_t>level1_bid;
+    std::vector<uint64_t>level2_bid;
+    std::vector<uint64_t>level3_bid;
+    std::vector<uint64_t>level4_bid;
 
-    std::unordered_map<uint64_t,LinkedList>PriceList_;
-    std::unordered_map<int,Node*>NodeLocation;
+    std::vector<uint64_t>level1_ask;
+    std::vector<uint64_t>level2_ask;
+    std::vector<uint64_t>level3_ask;
+    std::vector<uint64_t>level4_ask;
+
+    std::unordered_map<uint64_t,LinkedList>BidList_;
+    std::unordered_map<uint64_t,LinkedList>AskList_;
+    std::unordered_map<int,Node*>BidLocation;
+    std::unordered_map<int,Node*>AskLocation;
 
 public:
 
-    BinaryOrderBook():level1_(DIM_level1), level2_(DIM_level2),
-                      level3_(DIM_level3), level4_(DIM_level4){}
+    BinaryOrderBook()
+    : level1_bid(DIM_level1), level2_bid(DIM_level2),
+      level3_bid(DIM_level3), level4_bid(DIM_level4),
+      level1_ask(DIM_level1), level2_ask(DIM_level2),
+      level3_ask(DIM_level3), level4_ask(DIM_level4)
+    {}
     ~BinaryOrderBook() override = default;
 
-    int CalcInd(int x);
-    int CalcBit(int x);
+    uint64_t CalcInd(uint64_t x);
+    uint64_t CalcBit(uint64_t x);
 
     void AddOrder(const Order& order) override;
     void CancelOrder(int order_id) override;
     void UpdateQuantity(int order_id,int new_quantity) override;
+    void DeleteBid(int order_id,Node* node, uint64_t Price);
+    void DeleteAsk(int order_id, Node* node, uint64_t Price);
 
     const Order* GetBestBid() const override;
     const Order* GetBestAsk() const override;
 
     bool IsBidEmpty() const override;
     bool IsAskEmpty() const override;
-    bool CanFillQuantityAsks(int Quantity, int Price) const override;
-    bool CanFillQuantityBids(int Quantity, int Price) const override;
+    bool CanFillQuantityAsks(int Quantity, uint64_t Price) const override;
+    bool CanFillQuantityBids(int Quantity, uint64_t Price) const override;
 
     void PopBestBid() override;
     void PopBestAsk() override;

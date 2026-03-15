@@ -23,18 +23,16 @@ set(COMMON_SOURCES
         src/Storage/MultisetOrderBookStorage.cpp
         src/Engine/MatchingEngine.cpp
         src/Domain/order.cpp
+        src/Storage/BinaryOrderBookStorage.cpp
 )
 
-add_library(trading_lib STATIC ${COMMON_SOURCES}
-        src/Storage/BinaryOrderBookStorage.cpp)
+add_library(trading_lib STATIC ${COMMON_SOURCES})
 target_include_directories(trading_lib PUBLIC include)
 
 add_library(trading_lib_cov STATIC ${COMMON_SOURCES})
 target_include_directories(trading_lib_cov PUBLIC include)
 
 add_executable(LimitOrderBook main.cpp
-        include/Storage/BinaryOrderBookStorage.h
-        src/Storage/BinaryOrderBookStorage.cpp
 )
 target_link_libraries(LimitOrderBook PRIVATE trading_lib)
 

@@ -69,8 +69,8 @@ public:
 
     bool IsBidEmpty() const override;
     bool IsAskEmpty() const override;
-    bool CanFillQuantityAsks(int Quantity, int Price) const override;
-    bool CanFillQuantityBids(int Quantity, int Price) const override;
+    bool CanFillQuantityAsks(int Quantity, uint64_t Price) const override;
+    bool CanFillQuantityBids(int Quantity, uint64_t Price) const override;
 
     void PopBestBid() override;
     void PopBestAsk() override;
