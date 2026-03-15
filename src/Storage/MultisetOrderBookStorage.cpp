@@ -82,7 +82,7 @@ void MultisetOrderBook::UpdateQuantity(int order_id, int new_quantity) {
 
 }
 
-const Order * MultisetOrderBook::GetBestBid() const {
+const Order * MultisetOrderBook::GetBestBid()  {
     /**
      * @brief Returns the best (highest price) Bid order.
      * @return Const pointer to the top Bid, or nullptr if empty.
@@ -93,7 +93,7 @@ const Order * MultisetOrderBook::GetBestBid() const {
     return &(*bids.begin());
 }
 
-const Order * MultisetOrderBook::GetBestAsk() const {
+const Order * MultisetOrderBook::GetBestAsk()  {
     /**
      * @brief Returns the best (lowest price) Ask order.
      * @return Const pointer to the top Ask, or nullptr if empty.

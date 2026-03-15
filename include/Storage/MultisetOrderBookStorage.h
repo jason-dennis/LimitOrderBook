@@ -64,8 +64,8 @@ public:
     void CancelOrder(int order_id) override;
     void UpdateQuantity(int order_id,int new_quantity) override;
 
-    const Order* GetBestBid() const override;
-    const Order* GetBestAsk() const override;
+    const Order* GetBestBid()  override;
+    const Order* GetBestAsk()  override;
 
     bool IsBidEmpty() const override;
     bool IsAskEmpty() const override;

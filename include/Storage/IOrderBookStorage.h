@@ -37,13 +37,13 @@ public:
      * @brief Accesses the highest-priced Buy order.
      * @return Pointer to the best Bid, or nullptr if the side is empty.
      */
-    virtual const Order* GetBestBid() const = 0;
+    virtual const Order* GetBestBid()  = 0;
 
     /**
      * @brief Accesses the lowest-priced Ask order.
      * @return Pointer to the best Ask, or nullptr if the side is empty.
      */
-    virtual const Order* GetBestAsk() const = 0;
+    virtual const Order* GetBestAsk()  = 0;
 
     /**
      * @brief Checks for the presence of Buy orders.

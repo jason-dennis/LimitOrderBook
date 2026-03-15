@@ -73,6 +73,42 @@ private:
             return head_;
         }
     };
+    class ListMap {
+        static constexpr uint64_t PAGE_SIZE = 64;
+        static constexpr uint64_t NUM_PAGES = 20'000'000 / PAGE_SIZE + 1;
+ 
+        std::vector<LinkedList*> pages_;
+ 
+    public:
+        ListMap() : pages_(NUM_PAGES, nullptr) {}
+ 
+        ~ListMap() {
+            for (auto* p : pages_)
+                delete[] p;
+        }
+ 
+
+        ListMap(const ListMap&) = delete;
+        ListMap& operator=(const ListMap&) = delete;
+
+        ListMap(ListMap&& other) noexcept : pages_(std::move(other.pages_)) {}
+        ListMap& operator=(ListMap&& other) noexcept {
+            if (this != &other) {
+                for (auto* p : pages_) delete[] p;
+                pages_ = std::move(other.pages_);
+            }
+            return *this;
+        }
+ 
+        LinkedList& operator[](uint64_t price) {
+            uint64_t page_idx = price / PAGE_SIZE;
+            uint64_t slot_idx = price % PAGE_SIZE;
+            if (!pages_[page_idx]) {
+                pages_[page_idx] = new LinkedList[PAGE_SIZE]();
+            }
+            return pages_[page_idx][slot_idx];
+        }
+    };
 
     const int DIM_level1 = 312'505;
     const int DIM_level2 = 48'885;
@@ -89,8 +125,8 @@ private:
     std::vector<uint64_t>level3_ask;
     std::vector<uint64_t>level4_ask;
 
-    std::unordered_map<uint64_t,LinkedList>BidList_;
-    std::unordered_map<uint64_t,LinkedList>AskList_;
+    ListMap BidList_;
+    ListMap AskList_;
     std::unordered_map<int,Node*>BidLocation;
     std::unordered_map<int,Node*>AskLocation;
 
@@ -113,8 +149,8 @@ public:
     void DeleteBid(int order_id,Node* node, uint64_t Price);
     void DeleteAsk(int order_id, Node* node, uint64_t Price);
 
-    const Order* GetBestBid() const override;
-    const Order* GetBestAsk() const override;
+    const Order* GetBestBid()  override;
+    const Order* GetBestAsk()  override;
 
     bool IsBidEmpty() const override;
     bool IsAskEmpty() const override;

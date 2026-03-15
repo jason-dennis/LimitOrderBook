@@ -171,7 +171,7 @@ void BinaryOrderBook::UpdateQuantity(int order_id, int new_quantity) {
 
 }
 
-const Order * BinaryOrderBook::GetBestBid() const {
+const Order * BinaryOrderBook::GetBestBid()  {
 
 
     for (int i=(int)DIM_level4-1;i>=0;--i) {
@@ -190,8 +190,7 @@ const Order * BinaryOrderBook::GetBestBid() const {
 
             uint64_t Price = ind_level1*64 + bit_level1;
 
-            auto it = BidList_.find(Price);
-            Node* node = it->second.GetHead();
+            Node* node = BidList_[Price].GetHead();
             return node->GetOrder();
         }
     }
@@ -199,7 +198,7 @@ const Order * BinaryOrderBook::GetBestBid() const {
     return nullptr;
 }
 
-const Order * BinaryOrderBook::GetBestAsk() const {
+const Order * BinaryOrderBook::GetBestAsk() {
     for (uint64_t i=0;i< DIM_level4; ++i) {
         if (level4_ask[i] > 0) {
 
@@ -216,8 +215,7 @@ const Order * BinaryOrderBook::GetBestAsk() const {
 
             uint64_t Price = ind_level1*64 + bit_level1;
 
-            auto it = AskList_.find(Price);
-            Node* node = it->second.GetHead();
+            Node* node = AskList_[Price].GetHead();
             return node->GetOrder();
         }
     }
@@ -271,8 +269,7 @@ void BinaryOrderBook::PopBestBid() {
 
             uint64_t Price = ind_level1*64 + bit_level1;
 
-            auto it = BidList_.find(Price);
-            Node* node = it->second.GetHead();
+            Node* node = BidList_[Price].GetHead();
             DeleteBid(node->GetOrder()->GetOrderID(),node,Price);
             return ;
         }
@@ -296,8 +293,7 @@ void BinaryOrderBook::PopBestAsk() {
 
             uint64_t Price = ind_level1*64 + bit_level1;
 
-            auto it = AskList_.find(Price);
-            Node* node = it->second.GetHead();
+            Node* node = AskList_[Price].GetHead();
             DeleteAsk(node->GetOrder()->GetOrderID(),node,Price);
             return;
         }
