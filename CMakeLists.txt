@@ -25,13 +25,17 @@ set(COMMON_SOURCES
         src/Domain/order.cpp
 )
 
-add_library(trading_lib STATIC ${COMMON_SOURCES})
+add_library(trading_lib STATIC ${COMMON_SOURCES}
+        src/Storage/BinaryOrderBookStorage.cpp)
 target_include_directories(trading_lib PUBLIC include)
 
 add_library(trading_lib_cov STATIC ${COMMON_SOURCES})
 target_include_directories(trading_lib_cov PUBLIC include)
 
-add_executable(LimitOrderBook main.cpp)
+add_executable(LimitOrderBook main.cpp
+        include/Storage/BinaryOrderBookStorage.h
+        src/Storage/BinaryOrderBookStorage.cpp
+)
 target_link_libraries(LimitOrderBook PRIVATE trading_lib)
 
 enable_testing()
@@ -41,6 +45,7 @@ add_executable(run_tests
         Tests/Storage/test_multiset_storage.cpp
         Tests/Domain/test_order.cpp
         Tests/Engine/TestMatchingEngine.cpp
+        Tests/Storage/test_binaryorderbook.cpp
 
 )
 target_link_libraries(run_tests PRIVATE trading_lib_cov gtest_main)
