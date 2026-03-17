@@ -93,7 +93,7 @@ private:
 
         ListMap(ListMap&& other) noexcept : pages_(std::move(other.pages_)) {}
         ListMap& operator=(ListMap&& other) noexcept {
-            if (this != &other) {
+            if (this!= &other) {
                 for (auto* p : pages_) delete[] p;
                 pages_ = std::move(other.pages_);
             }
@@ -109,11 +109,16 @@ private:
             return pages_[page_idx][slot_idx];
         }
     };
+//
+    const int DIM_level1 = 312'501;
+    const int DIM_level2 =  4'884;
+    const int DIM_level3 = 77;
+    const int DIM_level4 = 2;
 
-    const int DIM_level1 = 312'505;
-    const int DIM_level2 = 48'885;
-    const int DIM_level3 = 80;
-    const int DIM_level4 = 3;
+//    const int DIM_level1 = 3'125'000; // 200,000,000/64 = 3,125,000
+//    const int DIM_level2 = 48'828;  // 3,125,000/64 = ~48,828
+//    const int DIM_level3 = 762; // 48,828/64 = ~762
+//    const int DIM_level4 = 11; // 762/64 = ~11
 
     std::vector<uint64_t>level1_bid;
     std::vector<uint64_t>level2_bid;

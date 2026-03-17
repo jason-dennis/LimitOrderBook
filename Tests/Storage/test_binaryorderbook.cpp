@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 #include "../../include/Storage/BinaryOrderBookStorage.h"
-
+#include <deque>
 // ─────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────
@@ -24,7 +24,7 @@ static Order MakeSell(int id, uint64_t price, int qty) {
 class BinaryOrderBookTest : public ::testing::Test {
 protected:
     BinaryOrderBook book;
-    std::vector<Order> orders;
+    std::deque<Order> orders;
 
     void AddBuy(int id, uint64_t price, int qty) {
         orders.emplace_back(MakeBuy(id, price, qty));
