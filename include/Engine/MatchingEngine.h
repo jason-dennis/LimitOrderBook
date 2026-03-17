@@ -9,6 +9,8 @@
 #include <vector>
 #include <deque>
 
+/// scoate history trades de aici si pune l in app engine, renunta la vector trade
+/// fa in loc de deque, vector<std::shared_ptr<>
 
 class MatchingEngine {
 private:

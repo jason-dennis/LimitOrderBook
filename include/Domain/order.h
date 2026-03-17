@@ -56,6 +56,32 @@ constexpr const char* ToString(TimeInForce tif) {
     constexpr const char* names[] = {"GTC", "IOC", "FOK"};
     return names[static_cast<int>(tif)];
 }
+OrderStatus ToOrderStatus(const std::string& s) {
+    if (s == "NEW")              return OrderStatus::NEW;
+    if (s == "PARTIALLY_FILLED") return OrderStatus::PARTIALLY_FILLED;
+    if (s == "FILLED")           return OrderStatus::FILLED;
+    if (s == "CANCELED")         return OrderStatus::CANCELED;
+    if (s == "REJECTED")         return OrderStatus::REJECTED;
+}
+
+OrderSide ToOrderSide(const std::string& s) {
+    if (s == "BUY")  return OrderSide::BUY;
+    if (s == "SELL") return OrderSide::SELL;
+
+}
+
+OrderType ToOrderType(const std::string& s) {
+    if (s == "MARKET")     return OrderType::MARKET;
+    if (s == "LIMIT")      return OrderType::LIMIT;
+    if (s == "STOP")       return OrderType::STOP;
+    if (s == "STOP_LIMIT") return OrderType::STOP_LIMIT;
+}
+
+TimeInForce ToTimeInForce(const std::string& s) {
+    if (s == "GTC") return TimeInForce::GTC;
+    if (s == "IOC") return TimeInForce::IOC;
+    if (s == "FOK") return TimeInForce::FOK;
+}
 
 class Order {
     /**

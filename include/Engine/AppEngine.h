@@ -3,27 +3,6 @@
 //
 
 /*
- * the app need to work like every trader have an account
- * generate a valid id
- * have a section with my order to can cancel/modify
- *
- * i need account? maybe not
- *
- *
- *
- *
- *  one engine for every symbol
- *
- *  i need:
- *      - to add an order
- *      - cancel an order
- *      - get history trades
- *
-
-    UI-> UserEngine -> AppEngine -> MatchingEngine
-
-
-
  *
  */
 #ifndef LIMITORDERBOOK_APPENGINE_H
@@ -31,19 +10,36 @@
 #include "MatchingEngine.h"
 #include <unordered_map>
 
+#include "Storage/BinaryOrderBookStorage.h"
+
 class AppEngine{
 private:
 
-    std::unordered_map<std::string,MatchingEngine&> Engine;
+    std::unordered_map<std::string,std::unique_ptr<MatchingEngine>> Engines_;
+    std::unordered_map<std::string,std::unique_ptr<IOrderBook>> OrderBooks_;
 public:
 
     AppEngine() = default;
     ~AppEngine() = default;
 
+    void AddOrder(std::shared_ptr<Order> order);
+
 
 
 
 };
+
+inline void AppEngine::AddOrder(std::shared_ptr<Order> order) {
+    auto engineIt = Engines_.find(order->GetSymbol());
+    if (engineIt != Engines_.end()) {
+        engineIt->second->ProcessOrder(order);
+    }
+    else {
+        OrderBooks_[order->GetSymbol()] = std::make_unique<BinaryOrderBook>();
+        Engines_[order->GetSymbol()] = std::make_unique<MatchingEngine>(*OrderBooks_[order->GetSymbol()]);
+        Engines_[order->GetSymbol()]->ProcessOrder(order);
+    }
+}
 
 
 #endif //LIMITORDERBOOK_APPENGINE_H
