@@ -11,20 +11,19 @@ class BinaryOrderBook: public IOrderBook {
 private:
     class Node {
     private:
-        const Order* order_;
+        const std::shared_ptr<Order> order_;
         Node* next_;
         Node* prev_;
     public:
-        Node(const Order* order): order_(order), next_(nullptr),prev_(nullptr){}
+        Node(const std::shared_ptr<Order> order): order_(order), next_(nullptr),prev_(nullptr){}
 
         Node* GetNext() const {return next_;}
         Node* GetPrev() const {return prev_;}
 
-        const Order* GetOrder() const {return order_;}
+        const std::shared_ptr<Order> GetOrder() const {return order_;}
 
         void SetPrev(Node* prev){prev_ = prev;}
         void SetNext(Node* next) {next_ = next;}
-        void SetOrder(const Order* order){order_ = order;}
 
     };
     class LinkedList {
@@ -35,7 +34,7 @@ private:
 
         LinkedList(): head_(nullptr), tail_(nullptr){}
 
-        Node* AddNode(const Order* order) {
+        Node* AddNode(std::shared_ptr<Order> order) {
             Node* node= new Node(order);
             if (!tail_) {
                 head_=tail_=node;
@@ -148,14 +147,14 @@ public:
     uint64_t CalcInd(uint64_t x);
     uint64_t CalcBit(uint64_t x);
 
-    void AddOrder(const Order& order) override;
+    void AddOrder(const std::shared_ptr<Order> order) override;
     void CancelOrder(int order_id) override;
     void UpdateQuantity(int order_id,int new_quantity) override;
     void DeleteBid(int order_id,Node* node, uint64_t Price);
     void DeleteAsk(int order_id, Node* node, uint64_t Price);
 
-    const Order* GetBestBid()  override;
-    const Order* GetBestAsk()  override;
+    const std::shared_ptr<Order> GetBestBid()  override;
+    const std::shared_ptr<Order> GetBestAsk()  override;
 
     bool IsBidEmpty() const override;
     bool IsAskEmpty() const override;

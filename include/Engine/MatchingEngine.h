@@ -15,21 +15,20 @@
 class MatchingEngine {
 private:
     IOrderBook& OrderBook_;
-    std::deque<Trade>HistoryTrades_;
 public:
     ~MatchingEngine()=default;
 
     MatchingEngine(IOrderBook& OrderBook):OrderBook_(OrderBook){};
 
-    std::vector<Trade> ProcessOrder(Order& NewOrder);
+    void ProcessOrder(std::shared_ptr<Order> NewOrder,std::vector<std::shared_ptr<Trade>>&Trades);
     const IOrderBook& GetOrderBook() const { return OrderBook_; }
-    void MatchOrderBid(Order &NewOrder, std::vector<Trade>& Trades);
-    void MatchOrderAsk(Order &NewOrder, std::vector<Trade>& Trades);
+    void MatchOrderBid(std::shared_ptr<Order> NewOrder, std::vector<std::shared_ptr<Trade>>&Trades);
+    void MatchOrderAsk(std::shared_ptr<Order> NewOrderr, std::vector<std::shared_ptr<Trade>>&Trades);
 
-    std::vector<Trade> ProcessBuyLimit(Order& NewOrder);
-    std::vector<Trade> ProcessBuyMarket(Order& NewOrder);
-    std::vector<Trade> ProcessSellLimit(Order& NewOrder);
-    std::vector<Trade> ProcessSellMarket(Order& NewOrder);
+    void ProcessBuyLimit(std::shared_ptr<Order> NewOrder,std::vector<std::shared_ptr<Trade>>&Trades);
+    void ProcessBuyMarket(std::shared_ptr<Order> NewOrder,std::vector<std::shared_ptr<Trade>>&Trades);
+    void ProcessSellLimit(std::shared_ptr<Order> NewOrder,std::vector<std::shared_ptr<Trade>>&Trades);
+    void ProcessSellMarket(std::shared_ptr<Order> NewOrder,std::vector<std::shared_ptr<Trade>>&Trades);
 
 };
 

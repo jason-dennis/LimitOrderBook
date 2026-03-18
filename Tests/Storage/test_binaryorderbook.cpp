@@ -5,14 +5,14 @@
 // Helpers
 // ─────────────────────────────────────────────
 
-static Order MakeBuy(int id, uint64_t price, int qty) {
-    return Order(id, 1, OrderSide::BUY, OrderType::LIMIT, "AAPL", price, qty,
+static std::shared_ptr<Order> MakeBuy(int id, uint64_t price, int qty) {
+    return std::make_shared<Order>(id, 1, OrderSide::BUY, OrderType::LIMIT, "AAPL", price, qty,
                  std::chrono::system_clock::now(), TimeInForce::GTC,
                  OrderStatus::NEW);
 }
 
-static Order MakeSell(int id, uint64_t price, int qty) {
-    return Order(id, 1, OrderSide::SELL, OrderType::LIMIT, "AAPL", price, qty,
+static std::shared_ptr<Order> MakeSell(int id, uint64_t price, int qty) {
+    return std::make_shared<Order>(id, 1, OrderSide::SELL, OrderType::LIMIT, "AAPL", price, qty,
                  std::chrono::system_clock::now(), TimeInForce::GTC,
                  OrderStatus::NEW);
 }
@@ -24,7 +24,7 @@ static Order MakeSell(int id, uint64_t price, int qty) {
 class BinaryOrderBookTest : public ::testing::Test {
 protected:
     BinaryOrderBook book;
-    std::deque<Order> orders;
+    std::vector<std::shared_ptr<Order>> orders;
 
     void AddBuy(int id, uint64_t price, int qty) {
         orders.emplace_back(MakeBuy(id, price, qty));

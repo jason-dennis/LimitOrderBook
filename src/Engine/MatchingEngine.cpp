@@ -4,51 +4,47 @@
 #include "Engine/MatchingEngine.h"
 
 
-std::vector<Trade> MatchingEngine::ProcessOrder(Order &NewOrder) {
+void MatchingEngine::ProcessOrder(std::shared_ptr<Order> NewOrder,std::vector<std::shared_ptr<Trade>>&Trades) {
 
-    OrderType Type=NewOrder.GetType();
-    OrderSide Side=NewOrder.GetSide();
+    OrderType Type=NewOrder->GetType();
+    OrderSide Side=NewOrder->GetSide();
 
     if (Side == OrderSide::BUY) {
 
         if (Type == OrderType::LIMIT) {
-            return ProcessBuyLimit(NewOrder);
+            ProcessBuyLimit(NewOrder,Trades);
         }
         else {
-            return ProcessBuyMarket(NewOrder);
+            ProcessBuyMarket(NewOrder,Trades);
         }
     }
     else  {
         if (Type == OrderType::LIMIT) {
-            return ProcessSellLimit(NewOrder);
+             ProcessSellLimit(NewOrder, Trades);
         }
         else  {
-            return ProcessSellMarket(NewOrder);
+            ProcessSellMarket(NewOrder, Trades);
         }
     }
 }
 
-void MatchingEngine::MatchOrderBid(Order &NewOrder, std::vector<Trade> &Trades) {
+void MatchingEngine::MatchOrderBid(std::shared_ptr<Order> NewOrder, std::vector<std::shared_ptr<Trade>>&Trades) {
     
     while (!OrderBook_.IsAskEmpty()
-          and NewOrder.GetQuantity() > 0
-          and (NewOrder.GetPrice() >= OrderBook_.GetBestAsk()->GetPrice()
-              or NewOrder.GetType() == OrderType::MARKET)) {
+          and NewOrder->GetQuantity() > 0
+          and (NewOrder->GetPrice() >= OrderBook_.GetBestAsk()->GetPrice()
+              or NewOrder->GetType() == OrderType::MARKET)) {
         auto now = std::chrono::system_clock::now();
-        int Quantity = std::min(NewOrder.GetQuantity(), OrderBook_.GetBestAsk()->GetQuantity());
-        Trade NewTrade = Trade(OrderBook_.GetBestAsk()->GetTraderID(),
-                               NewOrder.GetTraderID(),
+        int Quantity = std::min(NewOrder->GetQuantity(), OrderBook_.GetBestAsk()->GetQuantity());
+        std::shared_ptr<Trade> NewTrade = std::make_shared<Trade>(OrderBook_.GetBestAsk()->GetTraderID(),
+                               NewOrder->GetTraderID(),
                                OrderBook_.GetBestAsk()->GetPrice(),
                                Quantity,
                                now
         );
-        Trades.push_back(NewTrade);
-        HistoryTrades_.push_back(NewTrade);
-        if (HistoryTrades_.size() > 100) {
-            HistoryTrades_.pop_front();
-        }
+        Trades.push_back(std::move(NewTrade));
 
-        NewOrder.SetQuantity(NewOrder.GetQuantity() - Quantity);
+        NewOrder->SetQuantity(NewOrder->GetQuantity() - Quantity);
         if (OrderBook_.GetBestAsk()->GetQuantity() - Quantity == 0) {
             OrderBook_.PopBestAsk();
         } else {
@@ -58,27 +54,23 @@ void MatchingEngine::MatchOrderBid(Order &NewOrder, std::vector<Trade> &Trades) 
     }
 }
 
-void MatchingEngine::MatchOrderAsk(Order &NewOrder, std::vector<Trade> &Trades) {
+void MatchingEngine::MatchOrderAsk(std::shared_ptr<Order> NewOrder, std::vector<std::shared_ptr<Trade>>&Trades) {
 
     while (!OrderBook_.IsBidEmpty()
-           and NewOrder.GetQuantity() > 0
-           and (NewOrder.GetPrice() <= OrderBook_.GetBestBid()->GetPrice()
-               or NewOrder.GetType() == OrderType::MARKET)) {
+           and NewOrder->GetQuantity() > 0
+           and (NewOrder->GetPrice() <= OrderBook_.GetBestBid()->GetPrice()
+               or NewOrder->GetType() == OrderType::MARKET)) {
         auto now = std::chrono::system_clock::now();
-        int Quantity = std::min(NewOrder.GetQuantity(), OrderBook_.GetBestBid()->GetQuantity());
-        Trade NewTrade = Trade(OrderBook_.GetBestBid()->GetTraderID(),
-                               NewOrder.GetTraderID(),
+        int Quantity = std::min(NewOrder->GetQuantity(), OrderBook_.GetBestBid()->GetQuantity());
+        std::shared_ptr<Trade>NewTrade = std::make_shared<Trade>(OrderBook_.GetBestBid()->GetTraderID(),
+                               NewOrder->GetTraderID(),
                                OrderBook_.GetBestBid()->GetPrice(),
                                Quantity,
                                now
         );
-        Trades.push_back(NewTrade);
-        HistoryTrades_.push_back(NewTrade);
-        if (HistoryTrades_.size() > 100) {
-            HistoryTrades_.pop_front();
-        }
+        Trades.push_back(std::move(NewTrade));
 
-        NewOrder.SetQuantity(NewOrder.GetQuantity() - Quantity);
+        NewOrder->SetQuantity(NewOrder->GetQuantity() - Quantity);
         if (OrderBook_.GetBestBid()->GetQuantity() - Quantity == 0) {
             OrderBook_.PopBestBid();
         } else {
@@ -88,68 +80,63 @@ void MatchingEngine::MatchOrderAsk(Order &NewOrder, std::vector<Trade> &Trades) 
     }
 }
 
-std::vector<Trade> MatchingEngine::ProcessBuyLimit(Order &NewOrder) {
-    std::vector<Trade>Trades;
+void MatchingEngine::ProcessBuyLimit(std::shared_ptr<Order> NewOrder, std::vector<std::shared_ptr<Trade>>&Trades) {
 
-    if (NewOrder.GetTIF()==TimeInForce::FOK) {
-        if (OrderBook_.CanFillQuantityAsks(NewOrder.GetQuantity(),NewOrder.GetPrice())) {
+    if (NewOrder->GetTIF()==TimeInForce::FOK) {
+        if (OrderBook_.CanFillQuantityAsks(NewOrder->GetQuantity(),NewOrder->GetPrice())) {
             MatchOrderBid(NewOrder, Trades);
         }
-        return Trades;
+        return;
     }
 
     MatchOrderBid(NewOrder, Trades);
-    if (NewOrder.GetTIF() == TimeInForce::GTC and NewOrder.GetQuantity() > 0) {
+    if (NewOrder->GetTIF() == TimeInForce::GTC and NewOrder->GetQuantity() > 0) {
         OrderBook_.AddOrder(NewOrder);
     }
-    return Trades;
 }
 
-std::vector<Trade> MatchingEngine::ProcessBuyMarket(Order &NewOrder) {
-    std::vector<Trade>Trades;
+void MatchingEngine::ProcessBuyMarket(std::shared_ptr<Order> NewOrder, std::vector<std::shared_ptr<Trade>>&Trades) {
 
-    if (NewOrder.GetTIF()==TimeInForce::FOK) {
-        if (OrderBook_.CanFillQuantityAsks(NewOrder.GetQuantity(),NewOrder.GetPrice())) {
+    if (NewOrder->GetTIF()==TimeInForce::FOK) {
+        if (OrderBook_.CanFillQuantityAsks(NewOrder->GetQuantity(),NewOrder->GetPrice())) {
             MatchOrderBid(NewOrder, Trades);
         }
-        return Trades;
+        return;
     }
 
     MatchOrderBid(NewOrder, Trades);
 
-    return Trades;
 }
 
-std::vector<Trade> MatchingEngine::ProcessSellLimit(Order &NewOrder) {
-    std::vector<Trade>Trades;
+void MatchingEngine::ProcessSellLimit(std::shared_ptr<Order> NewOrder,std::vector<std::shared_ptr<Trade>>&Trades) {
 
-    if (NewOrder.GetTIF()==TimeInForce::FOK) {
-        if (OrderBook_.CanFillQuantityBids(NewOrder.GetQuantity(),NewOrder.GetPrice())) {
+
+    if (NewOrder->GetTIF()==TimeInForce::FOK) {
+        if (OrderBook_.CanFillQuantityBids(NewOrder->GetQuantity(),NewOrder->GetPrice())) {
             MatchOrderAsk(NewOrder, Trades);
         }
-        return Trades;
+        return;
     }
 
     MatchOrderAsk(NewOrder, Trades);
-    if (NewOrder.GetTIF() == TimeInForce::GTC and NewOrder.GetQuantity() > 0) {
+    if (NewOrder->GetTIF() == TimeInForce::GTC and NewOrder->GetQuantity() > 0) {
         OrderBook_.AddOrder(NewOrder);
     }
-    return Trades;
 
 }
 
-std::vector<Trade> MatchingEngine::ProcessSellMarket(Order &NewOrder) {
-    std::vector<Trade>Trades;
+void MatchingEngine::ProcessSellMarket(std::shared_ptr<Order> NewOrder,std::vector<std::shared_ptr<Trade>>&Trades) {
 
-    if (NewOrder.GetTIF()==TimeInForce::FOK) {
-        if (OrderBook_.CanFillQuantityBids(NewOrder.GetQuantity(),NewOrder.GetPrice())) {
+
+    if (NewOrder->GetTIF()==TimeInForce::FOK) {
+        if (OrderBook_.CanFillQuantityBids(NewOrder->GetQuantity(),NewOrder->GetPrice())) {
             MatchOrderAsk(NewOrder, Trades);
         }
-        return Trades;
+        return;
+
     }
 
     MatchOrderAsk(NewOrder, Trades);
 
-    return Trades;
 }
 

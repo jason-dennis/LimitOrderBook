@@ -24,7 +24,7 @@ public:
                     std::string TIF,int TraderID,std::string Side);
     void CancelOrder(std::shared_ptr<Order> order);
     void ModifyOrder(std::shared_ptr<Order> order);
-    std::vector<std::shared_ptr<Trade>> GetTradesHistory();
+    std::vector<std::shared_ptr<Trade>> GetTradesHistory(std::string Symbol);
     // get x best bids/asks
 
 

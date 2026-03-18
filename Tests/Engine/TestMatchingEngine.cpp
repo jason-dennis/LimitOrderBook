@@ -15,18 +15,18 @@ protected:
     MatchingEngine engine{book};
     std::chrono::system_clock::time_point Now = std::chrono::system_clock::now();
 
-    Order MakeBuy(int id, uint64_t price, int qty,
-                  OrderType type = OrderType::LIMIT,
-                  TimeInForce tif = TimeInForce::GTC) {
-        return Order(id, id * 10, OrderSide::BUY, type, "BTCUSD",
-                     price, qty, Now, tif, OrderStatus::NEW);
+    std::shared_ptr<Order> MakeBuy(int id, uint64_t price, int qty,
+                                   OrderType type = OrderType::LIMIT,
+                                   TimeInForce tif = TimeInForce::GTC) {
+        return std::make_shared<Order>(id, id * 10, OrderSide::BUY, type, "BTCUSD",
+                                       price, qty, Now, tif, OrderStatus::NEW);
     }
 
-    Order MakeSell(int id, uint64_t price, int qty,
-                   OrderType type = OrderType::LIMIT,
-                   TimeInForce tif = TimeInForce::GTC) {
-        return Order(id, id * 10, OrderSide::SELL, type, "BTCUSD",
-                     price, qty, Now, tif, OrderStatus::NEW);
+    std::shared_ptr<Order> MakeSell(int id, uint64_t price, int qty,
+                                    OrderType type = OrderType::LIMIT,
+                                    TimeInForce tif = TimeInForce::GTC) {
+        return std::make_shared<Order>(id, id * 10, OrderSide::SELL, type, "BTCUSD",
+                                       price, qty, Now, tif, OrderStatus::NEW);
     }
 };
 
@@ -36,29 +36,36 @@ protected:
 
 TEST_F(MatchingEngineTest, BuyLimit_GTC_NoMatch_AddsToBook) {
     auto buy = MakeBuy(1, 100, 10);
-    auto trades = engine.ProcessOrder(buy);
+    std::vector<std::shared_ptr<Trade>> trades;
+    engine.ProcessOrder(buy, trades);
     EXPECT_TRUE(trades.empty());
     EXPECT_FALSE(book.IsBidEmpty());
 }
 
 TEST_F(MatchingEngineTest, BuyLimit_GTC_FullMatch_NoRemainder) {
     auto sell = MakeSell(1, 100, 10);
-    engine.ProcessOrder(sell); // resting ask
+    std::vector<std::shared_ptr<Trade>> trades;
+    engine.ProcessOrder(sell, trades); // resting ask
+
+    trades.clear();
     auto buy = MakeBuy(2, 100, 10);
-    auto trades = engine.ProcessOrder(buy);
+    engine.ProcessOrder(buy, trades);
     EXPECT_EQ(trades.size(), 1u);
-    EXPECT_EQ(trades[0].GetQuantity(), 10);
+    EXPECT_EQ(trades[0]->GetQuantity(), 10);
     EXPECT_TRUE(book.IsBidEmpty());
     EXPECT_TRUE(book.IsAskEmpty());
 }
 
 TEST_F(MatchingEngineTest, BuyLimit_GTC_PartialMatch_RemainderAddedToBook) {
     auto sell = MakeSell(1, 100, 5);
-    engine.ProcessOrder(sell); // resting ask of 5
+    std::vector<std::shared_ptr<Trade>> trades;
+    engine.ProcessOrder(sell, trades); // resting ask of 5
+
+    trades.clear();
     auto buy = MakeBuy(2, 100, 10);
-    auto trades = engine.ProcessOrder(buy);
+    engine.ProcessOrder(buy, trades);
     EXPECT_EQ(trades.size(), 1u);
-    EXPECT_EQ(trades[0].GetQuantity(), 5);
+    EXPECT_EQ(trades[0]->GetQuantity(), 5);
     // remaining 5 should rest on bid side
     EXPECT_FALSE(book.IsBidEmpty());
     EXPECT_EQ(book.GetBestBid()->GetQuantity(), 5);
@@ -66,9 +73,12 @@ TEST_F(MatchingEngineTest, BuyLimit_GTC_PartialMatch_RemainderAddedToBook) {
 
 TEST_F(MatchingEngineTest, BuyLimit_GTC_PriceTooLow_NoMatch_AddsToBook) {
     auto sell = MakeSell(1, 110, 10);
-    engine.ProcessOrder(sell);
+    std::vector<std::shared_ptr<Trade>> trades;
+    engine.ProcessOrder(sell, trades);
+
+    trades.clear();
     auto buy = MakeBuy(2, 100, 10); // price below ask
-    auto trades = engine.ProcessOrder(buy);
+    engine.ProcessOrder(buy, trades);
     EXPECT_TRUE(trades.empty());
     EXPECT_FALSE(book.IsBidEmpty());
     EXPECT_FALSE(book.IsAskEmpty());
@@ -77,10 +87,13 @@ TEST_F(MatchingEngineTest, BuyLimit_GTC_PriceTooLow_NoMatch_AddsToBook) {
 TEST_F(MatchingEngineTest, BuyLimit_GTC_MultipleAsks_MatchesMultiple) {
     auto sell1 = MakeSell(1, 100, 5);
     auto sell2 = MakeSell(2, 100, 5);
-    engine.ProcessOrder(sell1);
-    engine.ProcessOrder(sell2);
+    std::vector<std::shared_ptr<Trade>> trades;
+    engine.ProcessOrder(sell1, trades);
+    engine.ProcessOrder(sell2, trades);
+
+    trades.clear();
     auto buy = MakeBuy(3, 100, 10);
-    auto trades = engine.ProcessOrder(buy);
+    engine.ProcessOrder(buy, trades);
     EXPECT_EQ(trades.size(), 2u);
     EXPECT_TRUE(book.IsAskEmpty());
 }
@@ -91,18 +104,22 @@ TEST_F(MatchingEngineTest, BuyLimit_GTC_MultipleAsks_MatchesMultiple) {
 
 TEST_F(MatchingEngineTest, BuyLimit_IOC_PartialMatch_RemainderDiscarded) {
     auto sell = MakeSell(1, 100, 5);
-    engine.ProcessOrder(sell);
+    std::vector<std::shared_ptr<Trade>> trades;
+    engine.ProcessOrder(sell, trades);
+
+    trades.clear();
     auto buy = MakeBuy(2, 100, 10, OrderType::LIMIT, TimeInForce::IOC);
-    auto trades = engine.ProcessOrder(buy);
+    engine.ProcessOrder(buy, trades);
     EXPECT_EQ(trades.size(), 1u);
-    EXPECT_EQ(trades[0].GetQuantity(), 5);
+    EXPECT_EQ(trades[0]->GetQuantity(), 5);
     // remainder NOT added to book for IOC
     EXPECT_TRUE(book.IsBidEmpty());
 }
 
 TEST_F(MatchingEngineTest, BuyLimit_IOC_NoMatch_NothingAdded) {
     auto buy = MakeBuy(1, 100, 10, OrderType::LIMIT, TimeInForce::IOC);
-    auto trades = engine.ProcessOrder(buy);
+    std::vector<std::shared_ptr<Trade>> trades;
+    engine.ProcessOrder(buy, trades);
     EXPECT_TRUE(trades.empty());
     EXPECT_TRUE(book.IsBidEmpty());
 }
@@ -113,18 +130,24 @@ TEST_F(MatchingEngineTest, BuyLimit_IOC_NoMatch_NothingAdded) {
 
 TEST_F(MatchingEngineTest, BuyLimit_FOK_CanFill_ExecutesFully) {
     auto sell = MakeSell(1, 100, 10);
-    engine.ProcessOrder(sell);
+    std::vector<std::shared_ptr<Trade>> trades;
+    engine.ProcessOrder(sell, trades);
+
+    trades.clear();
     auto buy = MakeBuy(2, 100, 10, OrderType::LIMIT, TimeInForce::FOK);
-    auto trades = engine.ProcessOrder(buy);
+    engine.ProcessOrder(buy, trades);
     EXPECT_EQ(trades.size(), 1u);
-    EXPECT_EQ(trades[0].GetQuantity(), 10);
+    EXPECT_EQ(trades[0]->GetQuantity(), 10);
 }
 
 TEST_F(MatchingEngineTest, BuyLimit_FOK_CannotFill_NoTrades) {
     auto sell = MakeSell(1, 100, 5); // only 5 available
-    engine.ProcessOrder(sell);
+    std::vector<std::shared_ptr<Trade>> trades;
+    engine.ProcessOrder(sell, trades);
+
+    trades.clear();
     auto buy = MakeBuy(2, 100, 10, OrderType::LIMIT, TimeInForce::FOK); // needs 10
-    auto trades = engine.ProcessOrder(buy);
+    engine.ProcessOrder(buy, trades);
     EXPECT_TRUE(trades.empty());
     EXPECT_FALSE(book.IsAskEmpty()); // ask untouched
 }
@@ -135,33 +158,43 @@ TEST_F(MatchingEngineTest, BuyLimit_FOK_CannotFill_NoTrades) {
 
 TEST_F(MatchingEngineTest, BuyMarket_GTC_FullMatch) {
     auto sell = MakeSell(1, 100, 10);
-    engine.ProcessOrder(sell);
+    std::vector<std::shared_ptr<Trade>> trades;
+    engine.ProcessOrder(sell, trades);
+
+    trades.clear();
     auto buy = MakeBuy(2, 0, 10, OrderType::MARKET, TimeInForce::GTC);
-    auto trades = engine.ProcessOrder(buy);
+    engine.ProcessOrder(buy, trades);
     EXPECT_EQ(trades.size(), 1u);
-    EXPECT_EQ(trades[0].GetQuantity(), 10);
+    EXPECT_EQ(trades[0]->GetQuantity(), 10);
     EXPECT_TRUE(book.IsAskEmpty());
 }
 
 TEST_F(MatchingEngineTest, BuyMarket_GTC_NoAsks_NoTrades) {
     auto buy = MakeBuy(1, 0, 10, OrderType::MARKET, TimeInForce::GTC);
-    auto trades = engine.ProcessOrder(buy);
+    std::vector<std::shared_ptr<Trade>> trades;
+    engine.ProcessOrder(buy, trades);
     EXPECT_TRUE(trades.empty());
 }
 
 TEST_F(MatchingEngineTest, BuyMarket_FOK_CanFill_Executes) {
     auto sell = MakeSell(1, 100, 10);
-    engine.ProcessOrder(sell);
+    std::vector<std::shared_ptr<Trade>> trades;
+    engine.ProcessOrder(sell, trades);
+
+    trades.clear();
     auto buy = MakeBuy(2, 100, 10, OrderType::MARKET, TimeInForce::FOK);
-    auto trades = engine.ProcessOrder(buy);
+    engine.ProcessOrder(buy, trades);
     EXPECT_EQ(trades.size(), 1u);
 }
 
 TEST_F(MatchingEngineTest, BuyMarket_FOK_CannotFill_NoTrades) {
     auto sell = MakeSell(1, 100, 5);
-    engine.ProcessOrder(sell);
+    std::vector<std::shared_ptr<Trade>> trades;
+    engine.ProcessOrder(sell, trades);
+
+    trades.clear();
     auto buy = MakeBuy(2, 100, 10, OrderType::MARKET, TimeInForce::FOK);
-    auto trades = engine.ProcessOrder(buy);
+    engine.ProcessOrder(buy, trades);
     EXPECT_TRUE(trades.empty());
 }
 
@@ -171,38 +204,48 @@ TEST_F(MatchingEngineTest, BuyMarket_FOK_CannotFill_NoTrades) {
 
 TEST_F(MatchingEngineTest, SellLimit_GTC_NoMatch_AddsToBook) {
     auto sell = MakeSell(1, 110, 10);
-    auto trades = engine.ProcessOrder(sell);
+    std::vector<std::shared_ptr<Trade>> trades;
+    engine.ProcessOrder(sell, trades);
     EXPECT_TRUE(trades.empty());
     EXPECT_FALSE(book.IsAskEmpty());
 }
 
 TEST_F(MatchingEngineTest, SellLimit_GTC_FullMatch_NoRemainder) {
     auto buy = MakeBuy(1, 100, 10);
-    engine.ProcessOrder(buy);
+    std::vector<std::shared_ptr<Trade>> trades;
+    engine.ProcessOrder(buy, trades);
+
+    trades.clear();
     auto sell = MakeSell(2, 100, 10);
-    auto trades = engine.ProcessOrder(sell);
+    engine.ProcessOrder(sell, trades);
     EXPECT_EQ(trades.size(), 1u);
-    EXPECT_EQ(trades[0].GetQuantity(), 10);
+    EXPECT_EQ(trades[0]->GetQuantity(), 10);
     EXPECT_TRUE(book.IsBidEmpty());
     EXPECT_TRUE(book.IsAskEmpty());
 }
 
 TEST_F(MatchingEngineTest, SellLimit_GTC_PartialMatch_RemainderAddedToBook) {
     auto buy = MakeBuy(1, 100, 5);
-    engine.ProcessOrder(buy);
+    std::vector<std::shared_ptr<Trade>> trades;
+    engine.ProcessOrder(buy, trades);
+
+    trades.clear();
     auto sell = MakeSell(2, 100, 10);
-    auto trades = engine.ProcessOrder(sell);
+    engine.ProcessOrder(sell, trades);
     EXPECT_EQ(trades.size(), 1u);
-    EXPECT_EQ(trades[0].GetQuantity(), 5);
+    EXPECT_EQ(trades[0]->GetQuantity(), 5);
     EXPECT_FALSE(book.IsAskEmpty());
     EXPECT_EQ(book.GetBestAsk()->GetQuantity(), 5);
 }
 
 TEST_F(MatchingEngineTest, SellLimit_GTC_PriceTooHigh_NoMatch_AddsToBook) {
     auto buy = MakeBuy(1, 90, 10);
-    engine.ProcessOrder(buy);
+    std::vector<std::shared_ptr<Trade>> trades;
+    engine.ProcessOrder(buy, trades);
+
+    trades.clear();
     auto sell = MakeSell(2, 100, 10); // price above bid
-    auto trades = engine.ProcessOrder(sell);
+    engine.ProcessOrder(sell, trades);
     EXPECT_TRUE(trades.empty());
     EXPECT_FALSE(book.IsAskEmpty());
     EXPECT_FALSE(book.IsBidEmpty());
@@ -211,10 +254,13 @@ TEST_F(MatchingEngineTest, SellLimit_GTC_PriceTooHigh_NoMatch_AddsToBook) {
 TEST_F(MatchingEngineTest, SellLimit_GTC_MultipleBids_MatchesMultiple) {
     auto buy1 = MakeBuy(1, 100, 5);
     auto buy2 = MakeBuy(2, 100, 5);
-    engine.ProcessOrder(buy1);
-    engine.ProcessOrder(buy2);
+    std::vector<std::shared_ptr<Trade>> trades;
+    engine.ProcessOrder(buy1, trades);
+    engine.ProcessOrder(buy2, trades);
+
+    trades.clear();
     auto sell = MakeSell(3, 100, 10);
-    auto trades = engine.ProcessOrder(sell);
+    engine.ProcessOrder(sell, trades);
     EXPECT_EQ(trades.size(), 2u);
     EXPECT_TRUE(book.IsBidEmpty());
 }
@@ -225,16 +271,20 @@ TEST_F(MatchingEngineTest, SellLimit_GTC_MultipleBids_MatchesMultiple) {
 
 TEST_F(MatchingEngineTest, SellLimit_IOC_PartialMatch_RemainderDiscarded) {
     auto buy = MakeBuy(1, 100, 5);
-    engine.ProcessOrder(buy);
+    std::vector<std::shared_ptr<Trade>> trades;
+    engine.ProcessOrder(buy, trades);
+
+    trades.clear();
     auto sell = MakeSell(2, 100, 10, OrderType::LIMIT, TimeInForce::IOC);
-    auto trades = engine.ProcessOrder(sell);
+    engine.ProcessOrder(sell, trades);
     EXPECT_EQ(trades.size(), 1u);
     EXPECT_TRUE(book.IsAskEmpty()); // remainder not added
 }
 
 TEST_F(MatchingEngineTest, SellLimit_IOC_NoMatch_NothingAdded) {
     auto sell = MakeSell(1, 100, 10, OrderType::LIMIT, TimeInForce::IOC);
-    auto trades = engine.ProcessOrder(sell);
+    std::vector<std::shared_ptr<Trade>> trades;
+    engine.ProcessOrder(sell, trades);
     EXPECT_TRUE(trades.empty());
     EXPECT_TRUE(book.IsAskEmpty());
 }
@@ -245,18 +295,24 @@ TEST_F(MatchingEngineTest, SellLimit_IOC_NoMatch_NothingAdded) {
 
 TEST_F(MatchingEngineTest, SellLimit_FOK_CanFill_ExecutesFully) {
     auto buy = MakeBuy(1, 100, 10);
-    engine.ProcessOrder(buy);
+    std::vector<std::shared_ptr<Trade>> trades;
+    engine.ProcessOrder(buy, trades);
+
+    trades.clear();
     auto sell = MakeSell(2, 100, 10, OrderType::LIMIT, TimeInForce::FOK);
-    auto trades = engine.ProcessOrder(sell);
+    engine.ProcessOrder(sell, trades);
     EXPECT_EQ(trades.size(), 1u);
-    EXPECT_EQ(trades[0].GetQuantity(), 10);
+    EXPECT_EQ(trades[0]->GetQuantity(), 10);
 }
 
 TEST_F(MatchingEngineTest, SellLimit_FOK_CannotFill_NoTrades) {
     auto buy = MakeBuy(1, 100, 5);
-    engine.ProcessOrder(buy);
+    std::vector<std::shared_ptr<Trade>> trades;
+    engine.ProcessOrder(buy, trades);
+
+    trades.clear();
     auto sell = MakeSell(2, 100, 10, OrderType::LIMIT, TimeInForce::FOK);
-    auto trades = engine.ProcessOrder(sell);
+    engine.ProcessOrder(sell, trades);
     EXPECT_TRUE(trades.empty());
     EXPECT_FALSE(book.IsBidEmpty()); // bid untouched
 }
@@ -267,33 +323,43 @@ TEST_F(MatchingEngineTest, SellLimit_FOK_CannotFill_NoTrades) {
 
 TEST_F(MatchingEngineTest, SellMarket_GTC_FullMatch) {
     auto buy = MakeBuy(1, 100, 10);
-    engine.ProcessOrder(buy);
+    std::vector<std::shared_ptr<Trade>> trades;
+    engine.ProcessOrder(buy, trades);
+
+    trades.clear();
     auto sell = MakeSell(2, 0, 10, OrderType::MARKET, TimeInForce::GTC);
-    auto trades = engine.ProcessOrder(sell);
+    engine.ProcessOrder(sell, trades);
     EXPECT_EQ(trades.size(), 1u);
-    EXPECT_EQ(trades[0].GetQuantity(), 10);
+    EXPECT_EQ(trades[0]->GetQuantity(), 10);
     EXPECT_TRUE(book.IsBidEmpty());
 }
 
 TEST_F(MatchingEngineTest, SellMarket_GTC_NoBids_NoTrades) {
     auto sell = MakeSell(1, 0, 10, OrderType::MARKET, TimeInForce::GTC);
-    auto trades = engine.ProcessOrder(sell);
+    std::vector<std::shared_ptr<Trade>> trades;
+    engine.ProcessOrder(sell, trades);
     EXPECT_TRUE(trades.empty());
 }
 
 TEST_F(MatchingEngineTest, SellMarket_FOK_CanFill_Executes) {
     auto buy = MakeBuy(1, 100, 10);
-    engine.ProcessOrder(buy);
+    std::vector<std::shared_ptr<Trade>> trades;
+    engine.ProcessOrder(buy, trades);
+
+    trades.clear();
     auto sell = MakeSell(2, 100, 10, OrderType::MARKET, TimeInForce::FOK);
-    auto trades = engine.ProcessOrder(sell);
+    engine.ProcessOrder(sell, trades);
     EXPECT_EQ(trades.size(), 1u);
 }
 
 TEST_F(MatchingEngineTest, SellMarket_FOK_CannotFill_NoTrades) {
     auto buy = MakeBuy(1, 100, 5);
-    engine.ProcessOrder(buy);
+    std::vector<std::shared_ptr<Trade>> trades;
+    engine.ProcessOrder(buy, trades);
+
+    trades.clear();
     auto sell = MakeSell(2, 100, 10, OrderType::MARKET, TimeInForce::FOK);
-    auto trades = engine.ProcessOrder(sell);
+    engine.ProcessOrder(sell, trades);
     EXPECT_TRUE(trades.empty());
 }
 
@@ -303,30 +369,39 @@ TEST_F(MatchingEngineTest, SellMarket_FOK_CannotFill_NoTrades) {
 
 TEST_F(MatchingEngineTest, Trade_HasCorrectPrice) {
     auto sell = MakeSell(1, 105, 10);
-    engine.ProcessOrder(sell);
+    std::vector<std::shared_ptr<Trade>> trades;
+    engine.ProcessOrder(sell, trades);
+
+    trades.clear();
     auto buy = MakeBuy(2, 105, 10);
-    auto trades = engine.ProcessOrder(buy);
+    engine.ProcessOrder(buy, trades);
     ASSERT_EQ(trades.size(), 1u);
-    EXPECT_EQ(trades[0].GetPrice(), 105u);
+    EXPECT_EQ(trades[0]->GetPrice(), 105u);
 }
 
 TEST_F(MatchingEngineTest, Trade_HasCorrectMakerAndTakerID) {
     auto sell = MakeSell(1, 100, 10); // MakerID = 1*10 = 10
-    engine.ProcessOrder(sell);
+    std::vector<std::shared_ptr<Trade>> trades;
+    engine.ProcessOrder(sell, trades);
+
+    trades.clear();
     auto buy = MakeBuy(2, 100, 10);  // TakerID = 2*10 = 20
-    auto trades = engine.ProcessOrder(buy);
+    engine.ProcessOrder(buy, trades);
     ASSERT_EQ(trades.size(), 1u);
-    EXPECT_EQ(trades[0].GetMakerID(), 10);
-    EXPECT_EQ(trades[0].GetTakerID(), 20);
+    EXPECT_EQ(trades[0]->GetMakerID(), 10);
+    EXPECT_EQ(trades[0]->GetTakerID(), 20);
 }
 
 TEST_F(MatchingEngineTest, Trade_HasCorrectQuantity_PartialMatch) {
     auto sell = MakeSell(1, 100, 4);
-    engine.ProcessOrder(sell);
+    std::vector<std::shared_ptr<Trade>> trades;
+    engine.ProcessOrder(sell, trades);
+
+    trades.clear();
     auto buy = MakeBuy(2, 100, 10);
-    auto trades = engine.ProcessOrder(buy);
+    engine.ProcessOrder(buy, trades);
     ASSERT_GE(trades.size(), 1u);
-    EXPECT_EQ(trades[0].GetQuantity(), 4);
+    EXPECT_EQ(trades[0]->GetQuantity(), 4);
 }
 
 // ═════════════════════════════════════════════
@@ -334,19 +409,21 @@ TEST_F(MatchingEngineTest, Trade_HasCorrectQuantity_PartialMatch) {
 // ═════════════════════════════════════════════
 
 TEST_F(MatchingEngineTest, HistoryTrades_CappedAt100) {
-    // Push 101 trades through the engine — history should stay at 100
     for (int i = 1; i <= 101; i++) {
         auto sell = MakeSell(i, 100, 1);
-        engine.ProcessOrder(sell);
+        std::vector<std::shared_ptr<Trade>> trades;
+        engine.ProcessOrder(sell, trades);
+
         auto buy = MakeBuy(i + 200, 100, 1);
-        engine.ProcessOrder(buy);
+        engine.ProcessOrder(buy, trades);
     }
-    // We can't access HistoryTrades_ directly, but if no crash and
-    // the engine still works correctly, the cap is functioning
     auto sell = MakeSell(999, 100, 1);
-    engine.ProcessOrder(sell);
+    std::vector<std::shared_ptr<Trade>> trades;
+    engine.ProcessOrder(sell, trades);
+
+    trades.clear();
     auto buy = MakeBuy(1000, 100, 1);
-    auto trades = engine.ProcessOrder(buy);
+    engine.ProcessOrder(buy, trades);
     EXPECT_EQ(trades.size(), 1u);
 }
 
@@ -356,7 +433,8 @@ TEST_F(MatchingEngineTest, HistoryTrades_CappedAt100) {
 
 TEST_F(MatchingEngineTest, GetOrderBook_ReturnsCorrectState) {
     auto buy = MakeBuy(1, 100, 10);
-    engine.ProcessOrder(buy);
+    std::vector<std::shared_ptr<Trade>> trades;
+    engine.ProcessOrder(buy, trades);
     const auto& ob = engine.GetOrderBook();
     EXPECT_FALSE(ob.IsBidEmpty());
     EXPECT_TRUE(ob.IsAskEmpty());
@@ -368,40 +446,51 @@ TEST_F(MatchingEngineTest, GetOrderBook_ReturnsCorrectState) {
 
 TEST_F(MatchingEngineTest, Integration_BuyAndSell_CrossingPrices_Match) {
     auto buy = MakeBuy(1, 105, 10);
-    engine.ProcessOrder(buy);
+    std::vector<std::shared_ptr<Trade>> trades;
+    engine.ProcessOrder(buy, trades);
+
+    trades.clear();
     auto sell = MakeSell(2, 100, 10);
-    auto trades = engine.ProcessOrder(sell);
+    engine.ProcessOrder(sell, trades);
     EXPECT_EQ(trades.size(), 1u);
     EXPECT_TRUE(book.IsBidEmpty());
     EXPECT_TRUE(book.IsAskEmpty());
 }
 
 TEST_F(MatchingEngineTest, Integration_MultipleOrders_CorrectMatchOrder) {
-    // Two bids at different prices — sell should match highest first
     auto buy1 = MakeBuy(1, 100, 5);
     auto buy2 = MakeBuy(2, 105, 5);
-    engine.ProcessOrder(buy1);
-    engine.ProcessOrder(buy2);
+    std::vector<std::shared_ptr<Trade>> trades;
+    engine.ProcessOrder(buy1, trades);
+    engine.ProcessOrder(buy2, trades);
+
+    trades.clear();
     auto sell = MakeSell(3, 100, 5);
-    auto trades = engine.ProcessOrder(sell);
+    engine.ProcessOrder(sell, trades);
     ASSERT_EQ(trades.size(), 1u);
-    EXPECT_EQ(trades[0].GetPrice(), 105u); // matched at best bid
+    EXPECT_EQ(trades[0]->GetPrice(), 105u); // matched at best bid
 }
 
 TEST_F(MatchingEngineTest, Integration_MarketBuy_IgnoresPrice_MatchesAnyAsk) {
     auto sell = MakeSell(1, 999, 10); // very high ask price
-    engine.ProcessOrder(sell);
+    std::vector<std::shared_ptr<Trade>> trades;
+    engine.ProcessOrder(sell, trades);
+
+    trades.clear();
     auto buy = MakeBuy(2, 0, 10, OrderType::MARKET);
-    auto trades = engine.ProcessOrder(buy);
-    EXPECT_EQ(trades.size(), 1u); // market ignores price
+    engine.ProcessOrder(buy, trades);
+    EXPECT_EQ(trades.size(), 1u);
 }
 
 TEST_F(MatchingEngineTest, Integration_MarketSell_IgnoresPrice_MatchesAnyBid) {
     auto buy = MakeBuy(1, 1, 10); // very low bid price
-    engine.ProcessOrder(buy);
+    std::vector<std::shared_ptr<Trade>> trades;
+    engine.ProcessOrder(buy, trades);
+
+    trades.clear();
     auto sell = MakeSell(2, 0, 10, OrderType::MARKET);
-    auto trades = engine.ProcessOrder(sell);
-    EXPECT_EQ(trades.size(), 1u); // market ignores price
+    engine.ProcessOrder(sell, trades);
+    EXPECT_EQ(trades.size(), 1u);
 }
 
 // ═════════════════════════════════════════════
@@ -410,38 +499,45 @@ TEST_F(MatchingEngineTest, Integration_MarketSell_IgnoresPrice_MatchesAnyBid) {
 
 TEST_F(MatchingEngineTest, SellLimit_GTC_PartialMatch_BidQuantityUpdatedCorrectly) {
     auto buy = MakeBuy(1, 100, 10);
-    engine.ProcessOrder(buy);
+    std::vector<std::shared_ptr<Trade>> trades;
+    engine.ProcessOrder(buy, trades);
+
+    trades.clear();
     auto sell = MakeSell(2, 100, 4);
-    auto trades = engine.ProcessOrder(sell);
+    engine.ProcessOrder(sell, trades);
     EXPECT_EQ(trades.size(), 1u);
-    EXPECT_EQ(trades[0].GetQuantity(), 4);
-    // bid-ul trebuie sa ramana cu 6, nu sa fie eliminat
+    EXPECT_EQ(trades[0]->GetQuantity(), 4);
     EXPECT_FALSE(book.IsBidEmpty());
     EXPECT_EQ(book.GetBestBid()->GetQuantity(), 6);
 }
 
 TEST_F(MatchingEngineTest, BuyLimit_GTC_PartialMatch_AskQuantityUpdatedCorrectly) {
     auto sell = MakeSell(1, 100, 10);
-    engine.ProcessOrder(sell);
+    std::vector<std::shared_ptr<Trade>> trades;
+    engine.ProcessOrder(sell, trades);
+
+    trades.clear();
     auto buy = MakeBuy(2, 100, 4);
-    auto trades = engine.ProcessOrder(buy);
+    engine.ProcessOrder(buy, trades);
     EXPECT_EQ(trades.size(), 1u);
-    EXPECT_EQ(trades[0].GetQuantity(), 4);
-    // ask-ul trebuie sa ramana cu 6, nu sa fie eliminat
+    EXPECT_EQ(trades[0]->GetQuantity(), 4);
     EXPECT_FALSE(book.IsAskEmpty());
     EXPECT_EQ(book.GetBestAsk()->GetQuantity(), 6);
 }
 
 TEST_F(MatchingEngineTest, BuyLimit_GTC_MultipleAsks_PopAndUpdateInSameOrder) {
-    auto sell1 = MakeSell(1, 100, 3);  // o sa fie PopBest
-    auto sell2 = MakeSell(2, 100, 10); // o sa fie UpdateQuantity
-    engine.ProcessOrder(sell1);
-    engine.ProcessOrder(sell2);
+    auto sell1 = MakeSell(1, 100, 3);
+    auto sell2 = MakeSell(2, 100, 10);
+    std::vector<std::shared_ptr<Trade>> trades;
+    engine.ProcessOrder(sell1, trades);
+    engine.ProcessOrder(sell2, trades);
+
+    trades.clear();
     auto buy = MakeBuy(3, 100, 8);
-    auto trades = engine.ProcessOrder(buy);
+    engine.ProcessOrder(buy, trades);
     EXPECT_EQ(trades.size(), 2u);
-    EXPECT_EQ(trades[0].GetQuantity(), 3); // primul ask consumat complet
-    EXPECT_EQ(trades[1].GetQuantity(), 5); // al doilea partial
+    EXPECT_EQ(trades[0]->GetQuantity(), 3);
+    EXPECT_EQ(trades[1]->GetQuantity(), 5);
     EXPECT_FALSE(book.IsAskEmpty());
-    EXPECT_EQ(book.GetBestAsk()->GetQuantity(), 5); // ramane 5 din sell2
+    EXPECT_EQ(book.GetBestAsk()->GetQuantity(), 5);
 }

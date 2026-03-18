@@ -5,14 +5,14 @@
 // Helpers
 // ─────────────────────────────────────────────
 
-static Order MakeBuy(int id, uint64_t price, int qty) {
-    return Order(id, 1, OrderSide::BUY, OrderType::LIMIT, "AAPL", price, qty,
+static std::shared_ptr<Order> MakeBuy(int id, uint64_t price, int qty) {
+    return std::make_shared<Order>(id, 1, OrderSide::BUY, OrderType::LIMIT, "AAPL", price, qty,
                  std::chrono::system_clock::now(), TimeInForce::GTC,
                  OrderStatus::NEW);
 }
 
-static Order MakeSell(int id, uint64_t price, int qty) {
-    return Order(id, 1, OrderSide::SELL, OrderType::LIMIT, "AAPL", price, qty,
+static std::shared_ptr<Order>  MakeSell(int id, uint64_t price, int qty) {
+    return  std::make_shared<Order>(id, 1, OrderSide::SELL, OrderType::LIMIT, "AAPL", price, qty,
                  std::chrono::system_clock::now(), TimeInForce::GTC,
                  OrderStatus::NEW);
 }
@@ -118,7 +118,7 @@ TEST_F(MultisetOrderBookTest, CancelSellOrder_RemovesFromBook) {
 }
 
 TEST_F(MultisetOrderBookTest, CancelOrder_SetsStatusCanceled) {
-    Order buy = MakeBuy(1, 100, 10);
+    std::shared_ptr<Order> buy = MakeBuy(1, 100, 10);
     book.AddOrder(buy);
     // After cancel the order is gone from the book; status was set before erase
     // We verify indirectly: book is empty and no crash
@@ -461,4 +461,25 @@ TEST_F(MultisetOrderBookTest, CanFillQuantityBids_LoopExhausted_NeverHitsZero) {
     book.AddOrder(MakeBuy(1, 110, 3));
     book.AddOrder(MakeBuy(2, 108, 3));
     EXPECT_FALSE(book.CanFillQuantityBids(10, 100));
+}
+
+// ═════════════════════════════════════════════
+// Shared ownership verification
+// ═════════════════════════════════════════════
+
+TEST_F(MultisetOrderBookTest, SharedOwnership_OrderModifiedViaSharedPtr) {
+    auto order = MakeBuy(1, 100, 10);
+    book.AddOrder(order);
+    // order and book share ownership — status change visible from both
+    book.CancelOrder(1);
+    EXPECT_EQ(order->GetStatus(), OrderStatus::CANCELED);
+}
+
+TEST_F(MultisetOrderBookTest, SharedOwnership_PartialFillVisibleOutside) {
+    auto order = MakeSell(1, 100, 20);
+    book.AddOrder(order);
+    book.UpdateQuantity(1, 5);
+    // shared_ptr means the same object is updated
+    EXPECT_EQ(order->GetQuantity(), 5);
+    EXPECT_EQ(order->GetStatus(), OrderStatus::PARTIALLY_FILLED);
 }

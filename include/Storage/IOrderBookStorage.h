@@ -18,7 +18,7 @@ public:
      * @brief Adds a new order to the book.
      * @param order The order object to be registered.
      */
-    virtual void AddOrder(const Order& order) = 0;
+    virtual void AddOrder(std::shared_ptr<Order> order) = 0;
 
     /**
      * @brief Removes an order from the book based on its ID.
@@ -37,13 +37,13 @@ public:
      * @brief Accesses the highest-priced Buy order.
      * @return Pointer to the best Bid, or nullptr if the side is empty.
      */
-    virtual const Order* GetBestBid()  = 0;
+    virtual const std::shared_ptr<Order> GetBestBid()  = 0;
 
     /**
      * @brief Accesses the lowest-priced Ask order.
      * @return Pointer to the best Ask, or nullptr if the side is empty.
      */
-    virtual const Order* GetBestAsk()  = 0;
+    virtual const std::shared_ptr<Order> GetBestAsk()  = 0;
 
     /**
      * @brief Checks for the presence of Buy orders.

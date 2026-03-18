@@ -3,20 +3,20 @@
 //
 #include "../../include/Storage/MultisetOrderBookStorage.h"
 
-void MultisetOrderBook::AddOrder(const Order &order) {
+void MultisetOrderBook::AddOrder(std::shared_ptr<Order> order) {
     /**
      * @brief Adds a new order to the storage.
      * Inserts the order into the appropriate side (Bid/Ask) and indexes its location.
      * @param order The order object to be added.
      * @complexity O(log N) for insertion, O(1) for indexing.
     */
-    if (order.GetSide()==OrderSide::BUY) {
+    if (order->GetSide()==OrderSide::BUY) {
         auto it = bids.insert(order);
-        bidLocation[order.GetOrderID()]=it;
+        bidLocation[order->GetOrderID()]=it;
     }
     else {
         auto it=asks.insert(order);
-        askLocation[order.GetOrderID()]=it;
+        askLocation[order->GetOrderID()]=it;
     }
 }
 
@@ -30,7 +30,7 @@ void MultisetOrderBook::CancelOrder(int order_id) {
 
     auto bidIt = bidLocation.find(order_id);
     if (bidIt != bidLocation.end()) {
-        bidIt->second->SetStatus(OrderStatus::CANCELED);
+        (*(bidIt->second))->SetStatus(OrderStatus::CANCELED);
         bids.erase(bidIt->second);
         bidLocation.erase(order_id);
         return;
@@ -38,7 +38,7 @@ void MultisetOrderBook::CancelOrder(int order_id) {
 
     auto askIt = askLocation.find(order_id);
     if (askIt != askLocation.end()) {
-        askIt->second->SetStatus(OrderStatus::CANCELED);
+        (*askIt->second)->SetStatus(OrderStatus::CANCELED);
         asks.erase(askIt->second);
         askLocation.erase(order_id);
     }
@@ -46,21 +46,21 @@ void MultisetOrderBook::CancelOrder(int order_id) {
 
 void MultisetOrderBook::UpdateQuantity(int order_id, int new_quantity) {
     /**
-     * @brief Updates the quantity and status of an existing order.
+     * @brief Updates the quantity and status of an existing order->
      * If the new quantity is 0, the order is marked as FILLED and removed from storage.
      * Otherwise, the status is updated to PARTIALLY_FILLED.
      * @param order_id Unique identifier of the order to be updated.
-     * @param new_quantity The new volume for the order.
+     * @param new_quantity The new volume for the order->
      * @complexity O(1) to find the order in the map and O(log N) if removal from the multiset is required.
      */
     auto bidIt = bidLocation.find(order_id);
     if (bidIt != bidLocation.end()) {
-        bidIt->second->SetQuantity(new_quantity);
+        (*(bidIt->second))->SetQuantity(new_quantity);
         if (new_quantity>0) {
-            bidIt->second->SetStatus(OrderStatus::PARTIALLY_FILLED);
+            (*(bidIt->second))->SetStatus(OrderStatus::PARTIALLY_FILLED);
         }
         else {
-            bidIt->second->SetStatus(OrderStatus::FILLED);
+            (*(bidIt->second))->SetStatus(OrderStatus::FILLED);
             bids.erase(bidIt->second);
             bidLocation.erase(order_id);
         }
@@ -69,12 +69,12 @@ void MultisetOrderBook::UpdateQuantity(int order_id, int new_quantity) {
 
     auto askIt = askLocation.find(order_id);
     if (askIt != askLocation.end()) {
-        askIt->second->SetQuantity(new_quantity);
+        (*askIt->second)->SetQuantity(new_quantity);
         if (new_quantity>0) {
-            askIt->second->SetStatus(OrderStatus::PARTIALLY_FILLED);
+            (*askIt->second)->SetStatus(OrderStatus::PARTIALLY_FILLED);
         }
         else {
-            askIt->second->SetStatus(OrderStatus::FILLED);
+            (*askIt->second)->SetStatus(OrderStatus::FILLED);
             asks.erase(askIt->second);
             askLocation.erase(order_id);
         }
@@ -82,26 +82,26 @@ void MultisetOrderBook::UpdateQuantity(int order_id, int new_quantity) {
 
 }
 
-const Order * MultisetOrderBook::GetBestBid()  {
+const std::shared_ptr<Order>  MultisetOrderBook::GetBestBid()  {
     /**
-     * @brief Returns the best (highest price) Bid order.
+     * @brief Returns the best (highest price) Bid order->
      * @return Const pointer to the top Bid, or nullptr if empty.
      */
     if (bids.empty()) {
         return nullptr;
     }
-    return &(*bids.begin());
+    return (*bids.begin());
 }
 
-const Order * MultisetOrderBook::GetBestAsk()  {
+const std::shared_ptr<Order> MultisetOrderBook::GetBestAsk()  {
     /**
-     * @brief Returns the best (lowest price) Ask order.
+     * @brief Returns the best (lowest price) Ask order->
      * @return Const pointer to the top Ask, or nullptr if empty.
      */
     if (asks.empty()) {
         return nullptr;
     }
-    return &(*asks.begin());
+    return (*asks.begin());
 }
 
 bool MultisetOrderBook::IsBidEmpty() const {
@@ -121,10 +121,10 @@ bool MultisetOrderBook::IsAskEmpty() const {
 bool MultisetOrderBook::CanFillQuantityAsks(int Quantity, uint64_t Price) const {
 
     for (auto &order : asks) {
-        if (order.GetPrice() > Price) {
+        if (order->GetPrice() > Price) {
             break;
         }
-        Quantity-=std::min(Quantity,order.GetQuantity());
+        Quantity-=std::min(Quantity,order->GetQuantity());
         if (Quantity == 0) {
             return true;
         }
@@ -136,10 +136,10 @@ bool MultisetOrderBook::CanFillQuantityAsks(int Quantity, uint64_t Price) const 
 bool MultisetOrderBook::CanFillQuantityBids(int Quantity, uint64_t Price) const {
 
     for (auto &order : bids) {
-        if (order.GetPrice() < Price) {
+        if (order->GetPrice() < Price) {
             break;
         }
-        Quantity-=std::min(Quantity,order.GetQuantity());
+        Quantity-=std::min(Quantity,order->GetQuantity());
         if (Quantity == 0) {
             return true;
         }
@@ -157,8 +157,8 @@ void MultisetOrderBook::PopBestBid() {
         return;
     }
     auto it=bids.begin();
-    it->SetStatus(OrderStatus::FILLED);
-    int order_id=it->GetOrderID();
+    (*it)->SetStatus(OrderStatus::FILLED);
+    int order_id=(*it)->GetOrderID();
     bids.erase(it);
     bidLocation.erase(order_id);
 }
@@ -172,8 +172,8 @@ void MultisetOrderBook::PopBestAsk() {
         return;
     }
     auto it=asks.begin();
-    it->SetStatus(OrderStatus::FILLED);
-    int order_id=it->GetOrderID();
+    (*it)->SetStatus(OrderStatus::FILLED);
+    int order_id=(*it)->GetOrderID();
     asks.erase(it);
     askLocation.erase(order_id);
 }

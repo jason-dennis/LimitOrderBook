@@ -12,12 +12,12 @@ uint64_t BinaryOrderBook::CalcBit(uint64_t x) {
     return x%64;
 }
 
-void BinaryOrderBook::AddOrder(const Order &order) {
+void BinaryOrderBook::AddOrder(const std::shared_ptr<Order>order) {
 
-    if (order.GetSide()==OrderSide::BUY) {
-        uint64_t Price = order.GetPrice();
-        Node* node = BidList_[Price].AddNode(&order);
-        BidLocation[order.GetOrderID()]=node;
+    if (order->GetSide()==OrderSide::BUY) {
+        uint64_t Price = order->GetPrice();
+        Node* node = BidList_[Price].AddNode(order);
+        BidLocation[order->GetOrderID()]=node;
 
         uint64_t ind_level1 = CalcInd(Price);
         uint64_t bit_level1= CalcBit(Price);
@@ -36,9 +36,9 @@ void BinaryOrderBook::AddOrder(const Order &order) {
         level4_bid[ind_level4]|=(1ULL<<bit_level4);
     }
     else {
-        uint64_t Price = order.GetPrice();
-        Node* node = AskList_[Price].AddNode(&order);
-        AskLocation[order.GetOrderID()]=node;
+        uint64_t Price = order->GetPrice();
+        Node* node = AskList_[Price].AddNode(order);
+        AskLocation[order->GetOrderID()]=node;
 
         uint64_t ind_level1 = CalcInd(Price);
         uint64_t bit_level1= CalcBit(Price);
@@ -171,7 +171,7 @@ void BinaryOrderBook::UpdateQuantity(int order_id, int new_quantity) {
 
 }
 
-const Order * BinaryOrderBook::GetBestBid()  {
+const std::shared_ptr<Order> BinaryOrderBook::GetBestBid()  {
 
 
     for (int i=(int)DIM_level4-1;i>=0;--i) {
@@ -198,7 +198,7 @@ const Order * BinaryOrderBook::GetBestBid()  {
     return nullptr;
 }
 
-const Order * BinaryOrderBook::GetBestAsk() {
+const std::shared_ptr<Order> BinaryOrderBook::GetBestAsk() {
     for (uint64_t i=0;i< DIM_level4; ++i) {
         if (level4_ask[i] > 0) {
 

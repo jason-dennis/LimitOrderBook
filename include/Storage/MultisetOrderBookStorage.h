@@ -15,11 +15,11 @@ struct BidOrder {
      * @brief Comparator for the Buy side of the order book.
      * Orders are sorted by Price (Descending) and then by Time (Ascending).
      */
-    bool operator()(const Order& lhs, const Order& rhs) const {
-        if (lhs.GetPrice() == rhs.GetPrice()) {
-            return lhs.GetTime() < rhs.GetTime();
+    bool operator()(const std::shared_ptr<Order> lhs, const std::shared_ptr<Order>  rhs) const {
+        if (lhs->GetPrice() == rhs->GetPrice()) {
+            return lhs->GetTime() < rhs->GetTime();
         }
-        return lhs.GetPrice() > rhs.GetPrice();
+        return lhs->GetPrice() > rhs->GetPrice();
     }
 };
 
@@ -29,11 +29,11 @@ struct AskOrder {
      * @brief Comparator for the Sell side of the order book.
      * Orders are sorted by Price (Ascending) and then by Time (Ascending).
      */
-    bool operator()(const Order& lhs, const Order& rhs) const {
-        if (lhs.GetPrice() == rhs.GetPrice()) {
-            return lhs.GetTime() < rhs.GetTime();
+    bool operator()(const std::shared_ptr<Order>  lhs, const std::shared_ptr<Order> rhs) const {
+        if (lhs->GetPrice() == rhs->GetPrice()) {
+            return lhs->GetTime() < rhs->GetTime();
         }
-        return lhs.GetPrice() < rhs.GetPrice();
+        return lhs->GetPrice() < rhs->GetPrice();
     }
 };
 
@@ -47,25 +47,25 @@ class MultisetOrderBook: public IOrderBook {
      */
 private:
     /// Sorted container for Buy orders
-    std::multiset<Order,BidOrder>bids;
+    std::multiset<std::shared_ptr<Order>,BidOrder>bids;
     /// Sorted container for Sell orders
-    std::multiset<Order,AskOrder>asks;
+    std::multiset<std::shared_ptr<Order>,AskOrder>asks;
 
     /// Index for quick access to Bid iterators by ID
-    std::unordered_map<int,std::multiset<Order,BidOrder>::iterator>bidLocation;
+    std::unordered_map<int,std::multiset<std::shared_ptr<Order>,BidOrder>::iterator>bidLocation;
     /// Index for quick access to Ask iterators by ID
-    std::unordered_map<int,std::multiset<Order,AskOrder>::iterator>askLocation;
+    std::unordered_map<int,std::multiset<std::shared_ptr<Order>,AskOrder>::iterator>askLocation;
 public:
 
     MultisetOrderBook() = default;
     ~MultisetOrderBook() override = default;
 
-    void AddOrder(const Order& order) override;
+    void AddOrder(std::shared_ptr<Order> order) override;
     void CancelOrder(int order_id) override;
     void UpdateQuantity(int order_id,int new_quantity) override;
 
-    const Order* GetBestBid()  override;
-    const Order* GetBestAsk()  override;
+    const std::shared_ptr<Order>GetBestBid()  override;
+    const std::shared_ptr<Order> GetBestAsk()  override;
 
     bool IsBidEmpty() const override;
     bool IsAskEmpty() const override;
