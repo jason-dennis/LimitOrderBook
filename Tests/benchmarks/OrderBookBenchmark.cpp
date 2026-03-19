@@ -129,7 +129,7 @@ static void BM_Multiset_GetBestAsk(benchmark::State& state) {
     MultisetOrderBook ob;
     for (auto& o : orders) ob.AddOrder(o);
     for (auto _ : state) {
-        auto result = ob.GetBestAsk();  // fix: era GetBestBid
+        auto result = ob.GetBestAsk();
         benchmark::DoNotOptimize(result);
     }
     state.counters["Ops/sec"] = benchmark::Counter(state.iterations(), benchmark::Counter::kIsRate);
@@ -142,7 +142,7 @@ static void BM_Binary_GetBestAsk(benchmark::State& state) {
     BinaryOrderBook ob;
     for (auto& o : orders) ob.AddOrder(o);
     for (auto _ : state) {
-        auto result = ob.GetBestAsk();  // fix: era GetBestBid
+        auto result = ob.GetBestAsk();
         benchmark::DoNotOptimize(result);
     }
     state.counters["Ops/sec"] = benchmark::Counter(state.iterations(), benchmark::Counter::kIsRate);
@@ -150,7 +150,7 @@ static void BM_Binary_GetBestAsk(benchmark::State& state) {
 BENCHMARK(BM_Binary_GetBestAsk)->Range(1000, 100000)->Repetitions(5)->ReportAggregatesOnly(true);
 
 // ============================================================================
-// 4. GET BEST N BIDS/ASKS (x=5 și x=15)
+// 4. GET BEST N BIDS/ASKS (x=5 si x=15)
 // ============================================================================
 
 static void BM_Multiset_GetBestBids_5(benchmark::State& state) {
@@ -205,6 +205,58 @@ static void BM_Binary_GetBestBids_15(benchmark::State& state) {
 }
 BENCHMARK(BM_Binary_GetBestBids_15)->Range(1000, 100000)->Repetitions(5)->ReportAggregatesOnly(true);
 
+static void BM_Multiset_GetBestAsks_5(benchmark::State& state) {
+    int n = state.range(0);
+    auto orders = GenerateOrders(n);
+    MultisetOrderBook ob;
+    for (auto& o : orders) ob.AddOrder(o);
+    for (auto _ : state) {
+        auto result = ob.GetBestAsks(5);
+        benchmark::DoNotOptimize(result);
+    }
+    state.counters["Ops/sec"] = benchmark::Counter(state.iterations(), benchmark::Counter::kIsRate);
+}
+BENCHMARK(BM_Multiset_GetBestAsks_5)->Range(1000, 100000)->Repetitions(5)->ReportAggregatesOnly(true);
+
+static void BM_Binary_GetBestAsks_5(benchmark::State& state) {
+    int n = state.range(0);
+    auto orders = GenerateOrders(n);
+    BinaryOrderBook ob;
+    for (auto& o : orders) ob.AddOrder(o);
+    for (auto _ : state) {
+        auto result = ob.GetBestAsks(5);
+        benchmark::DoNotOptimize(result);
+    }
+    state.counters["Ops/sec"] = benchmark::Counter(state.iterations(), benchmark::Counter::kIsRate);
+}
+BENCHMARK(BM_Binary_GetBestAsks_5)->Range(1000, 100000)->Repetitions(5)->ReportAggregatesOnly(true);
+
+static void BM_Multiset_GetBestAsks_15(benchmark::State& state) {
+    int n = state.range(0);
+    auto orders = GenerateOrders(n);
+    MultisetOrderBook ob;
+    for (auto& o : orders) ob.AddOrder(o);
+    for (auto _ : state) {
+        auto result = ob.GetBestAsks(15);
+        benchmark::DoNotOptimize(result);
+    }
+    state.counters["Ops/sec"] = benchmark::Counter(state.iterations(), benchmark::Counter::kIsRate);
+}
+BENCHMARK(BM_Multiset_GetBestAsks_15)->Range(1000, 100000)->Repetitions(5)->ReportAggregatesOnly(true);
+
+static void BM_Binary_GetBestAsks_15(benchmark::State& state) {
+    int n = state.range(0);
+    auto orders = GenerateOrders(n);
+    BinaryOrderBook ob;
+    for (auto& o : orders) ob.AddOrder(o);
+    for (auto _ : state) {
+        auto result = ob.GetBestAsks(15);
+        benchmark::DoNotOptimize(result);
+    }
+    state.counters["Ops/sec"] = benchmark::Counter(state.iterations(), benchmark::Counter::kIsRate);
+}
+BENCHMARK(BM_Binary_GetBestAsks_15)->Range(1000, 100000)->Repetitions(5)->ReportAggregatesOnly(true);
+
 // ============================================================================
 // 5. CANCEL ORDER
 // ============================================================================
@@ -248,7 +300,37 @@ static void BM_Binary_CancelOrder(benchmark::State& state) {
 BENCHMARK(BM_Binary_CancelOrder)->Range(1000, 100000)->Repetitions(5)->ReportAggregatesOnly(true);
 
 // ============================================================================
-// 6. POP BEST BID/ASK
+// 6. UPDATE QUANTITY
+// ============================================================================
+
+static void BM_Multiset_UpdateQuantity(benchmark::State& state) {
+    int n = state.range(0);
+    auto orders = GenerateOrders(n);
+    MultisetOrderBook ob;
+    for (auto& o : orders) ob.AddOrder(o);
+    std::uniform_int_distribution<int> id_dist(0, n - 1);
+    for (auto _ : state) {
+        ob.UpdateQuantity(id_dist(rng), 50);
+    }
+    state.counters["Ops/sec"] = benchmark::Counter(state.iterations(), benchmark::Counter::kIsRate);
+}
+BENCHMARK(BM_Multiset_UpdateQuantity)->Range(1000, 100000)->Repetitions(5)->ReportAggregatesOnly(true);
+
+static void BM_Binary_UpdateQuantity(benchmark::State& state) {
+    int n = state.range(0);
+    auto orders = GenerateOrders(n);
+    BinaryOrderBook ob;
+    for (auto& o : orders) ob.AddOrder(o);
+    std::uniform_int_distribution<int> id_dist(0, n - 1);
+    for (auto _ : state) {
+        ob.UpdateQuantity(id_dist(rng), 50);
+    }
+    state.counters["Ops/sec"] = benchmark::Counter(state.iterations(), benchmark::Counter::kIsRate);
+}
+BENCHMARK(BM_Binary_UpdateQuantity)->Range(1000, 100000)->Repetitions(5)->ReportAggregatesOnly(true);
+
+// ============================================================================
+// 7. POP BEST BID / ASK
 // ============================================================================
 
 static void BM_Multiset_PopBestBid(benchmark::State& state) {
@@ -285,8 +367,102 @@ static void BM_Binary_PopBestBid(benchmark::State& state) {
 }
 BENCHMARK(BM_Binary_PopBestBid)->Range(1000, 100000)->Repetitions(5)->ReportAggregatesOnly(true);
 
+static void BM_Multiset_PopBestAsk(benchmark::State& state) {
+    int n = state.range(0);
+    auto orders = GenerateOrders(n);
+    MultisetOrderBook ob;
+    for (auto& o : orders) ob.AddOrder(o);
+    for (auto _ : state) {
+        if (ob.IsAskEmpty()) {
+            state.PauseTiming();
+            for (auto& o : orders) ob.AddOrder(o);
+            state.ResumeTiming();
+        }
+        ob.PopBestAsk();
+    }
+    state.counters["Ops/sec"] = benchmark::Counter(state.iterations(), benchmark::Counter::kIsRate);
+}
+BENCHMARK(BM_Multiset_PopBestAsk)->Range(1000, 100000)->Repetitions(5)->ReportAggregatesOnly(true);
+
+static void BM_Binary_PopBestAsk(benchmark::State& state) {
+    int n = state.range(0);
+    auto orders = GenerateOrders(n);
+    BinaryOrderBook ob;
+    for (auto& o : orders) ob.AddOrder(o);
+    for (auto _ : state) {
+        if (ob.IsAskEmpty()) {
+            state.PauseTiming();
+            for (auto& o : orders) ob.AddOrder(o);
+            state.ResumeTiming();
+        }
+        ob.PopBestAsk();
+    }
+    state.counters["Ops/sec"] = benchmark::Counter(state.iterations(), benchmark::Counter::kIsRate);
+}
+BENCHMARK(BM_Binary_PopBestAsk)->Range(1000, 100000)->Repetitions(5)->ReportAggregatesOnly(true);
+
 // ============================================================================
-// 7. MIXED WORKLOAD — 70% add, 20% cancel, 10% update
+// 8. CAN FILL QUANTITY ASKS / BIDS
+// ============================================================================
+
+static void BM_Multiset_CanFillQuantityAsks(benchmark::State& state) {
+    int n = state.range(0);
+    auto orders = GenerateOrders(n);
+    MultisetOrderBook ob;
+    for (auto& o : orders) ob.AddOrder(o);
+    std::uniform_int_distribution<uint64_t> price_dist(5'000, 15'000);
+    for (auto _ : state) {
+        auto result = ob.CanFillQuantityAsks(10, price_dist(rng));
+        benchmark::DoNotOptimize(result);
+    }
+    state.counters["Ops/sec"] = benchmark::Counter(state.iterations(), benchmark::Counter::kIsRate);
+}
+BENCHMARK(BM_Multiset_CanFillQuantityAsks)->Range(1000, 100000)->Repetitions(5)->ReportAggregatesOnly(true);
+
+static void BM_Binary_CanFillQuantityAsks(benchmark::State& state) {
+    int n = state.range(0);
+    auto orders = GenerateOrders(n);
+    BinaryOrderBook ob;
+    for (auto& o : orders) ob.AddOrder(o);
+    std::uniform_int_distribution<uint64_t> price_dist(5'000, 15'000);
+    for (auto _ : state) {
+        auto result = ob.CanFillQuantityAsks(10, price_dist(rng));
+        benchmark::DoNotOptimize(result);
+    }
+    state.counters["Ops/sec"] = benchmark::Counter(state.iterations(), benchmark::Counter::kIsRate);
+}
+BENCHMARK(BM_Binary_CanFillQuantityAsks)->Range(1000, 100000)->Repetitions(5)->ReportAggregatesOnly(true);
+
+static void BM_Multiset_CanFillQuantityBids(benchmark::State& state) {
+    int n = state.range(0);
+    auto orders = GenerateOrders(n);
+    MultisetOrderBook ob;
+    for (auto& o : orders) ob.AddOrder(o);
+    std::uniform_int_distribution<uint64_t> price_dist(5'000, 15'000);
+    for (auto _ : state) {
+        auto result = ob.CanFillQuantityBids(10, price_dist(rng));
+        benchmark::DoNotOptimize(result);
+    }
+    state.counters["Ops/sec"] = benchmark::Counter(state.iterations(), benchmark::Counter::kIsRate);
+}
+BENCHMARK(BM_Multiset_CanFillQuantityBids)->Range(1000, 100000)->Repetitions(5)->ReportAggregatesOnly(true);
+
+static void BM_Binary_CanFillQuantityBids(benchmark::State& state) {
+    int n = state.range(0);
+    auto orders = GenerateOrders(n);
+    BinaryOrderBook ob;
+    for (auto& o : orders) ob.AddOrder(o);
+    std::uniform_int_distribution<uint64_t> price_dist(5'000, 15'000);
+    for (auto _ : state) {
+        auto result = ob.CanFillQuantityBids(10, price_dist(rng));
+        benchmark::DoNotOptimize(result);
+    }
+    state.counters["Ops/sec"] = benchmark::Counter(state.iterations(), benchmark::Counter::kIsRate);
+}
+BENCHMARK(BM_Binary_CanFillQuantityBids)->Range(1000, 100000)->Repetitions(5)->ReportAggregatesOnly(true);
+
+// ============================================================================
+// 9. MIXED WORKLOAD — 70% add, 20% cancel, 10% update
 // ============================================================================
 
 static void BM_Multiset_MixedWorkload(benchmark::State& state) {
