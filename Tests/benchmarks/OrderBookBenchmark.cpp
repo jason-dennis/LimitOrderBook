@@ -5,11 +5,6 @@
 #include <vector>
 #include <chrono>
 
-// ============================================================================
-// PRICE GENERATORS
-// Tick = 100 (0.01), range realist: $10.00-$1999.99 → 1000-199999
-// ============================================================================
-
 static std::mt19937 rng(42);
 
 static uint64_t RandPrice() {
@@ -69,7 +64,7 @@ static void BM_Binary_AddOrder_Realistic(benchmark::State& state) {
 BENCHMARK(BM_Binary_AddOrder_Realistic)->Range(1000, 100000)->Repetitions(5)->ReportAggregatesOnly(true);
 
 // ============================================================================
-// 2. ADD ORDER — clustered (mai realist)
+// 2. ADD ORDER — clustered
 // ============================================================================
 
 static void BM_Multiset_AddOrder_Clustered(benchmark::State& state) {
@@ -121,7 +116,8 @@ static void BM_Binary_GetBestBid(benchmark::State& state) {
     BinaryOrderBook ob;
     for (auto& o : orders) ob.AddOrder(o);
     for (auto _ : state) {
-        benchmark::DoNotOptimize(ob.GetBestBid());
+        auto result = ob.GetBestBid();
+        benchmark::DoNotOptimize(result);
     }
     state.counters["Ops/sec"] = benchmark::Counter(state.iterations(), benchmark::Counter::kIsRate);
 }
@@ -133,7 +129,8 @@ static void BM_Multiset_GetBestAsk(benchmark::State& state) {
     MultisetOrderBook ob;
     for (auto& o : orders) ob.AddOrder(o);
     for (auto _ : state) {
-        benchmark::DoNotOptimize(ob.GetBestAsk());
+        auto result = ob.GetBestAsk();  // fix: era GetBestBid
+        benchmark::DoNotOptimize(result);
     }
     state.counters["Ops/sec"] = benchmark::Counter(state.iterations(), benchmark::Counter::kIsRate);
 }
@@ -145,7 +142,8 @@ static void BM_Binary_GetBestAsk(benchmark::State& state) {
     BinaryOrderBook ob;
     for (auto& o : orders) ob.AddOrder(o);
     for (auto _ : state) {
-        benchmark::DoNotOptimize(ob.GetBestAsk());
+        auto result = ob.GetBestAsk();  // fix: era GetBestBid
+        benchmark::DoNotOptimize(result);
     }
     state.counters["Ops/sec"] = benchmark::Counter(state.iterations(), benchmark::Counter::kIsRate);
 }
@@ -161,7 +159,8 @@ static void BM_Multiset_GetBestBids_5(benchmark::State& state) {
     MultisetOrderBook ob;
     for (auto& o : orders) ob.AddOrder(o);
     for (auto _ : state) {
-        benchmark::DoNotOptimize(ob.GetBestBids(5));
+        auto result = ob.GetBestBids(5);
+        benchmark::DoNotOptimize(result);
     }
     state.counters["Ops/sec"] = benchmark::Counter(state.iterations(), benchmark::Counter::kIsRate);
 }
@@ -173,7 +172,8 @@ static void BM_Binary_GetBestBids_5(benchmark::State& state) {
     BinaryOrderBook ob;
     for (auto& o : orders) ob.AddOrder(o);
     for (auto _ : state) {
-        benchmark::DoNotOptimize(ob.GetBestBids(5));
+        auto result = ob.GetBestBids(5);
+        benchmark::DoNotOptimize(result);
     }
     state.counters["Ops/sec"] = benchmark::Counter(state.iterations(), benchmark::Counter::kIsRate);
 }
@@ -185,7 +185,8 @@ static void BM_Multiset_GetBestBids_15(benchmark::State& state) {
     MultisetOrderBook ob;
     for (auto& o : orders) ob.AddOrder(o);
     for (auto _ : state) {
-        benchmark::DoNotOptimize(ob.GetBestBids(15));
+        auto result = ob.GetBestBids(15);
+        benchmark::DoNotOptimize(result);
     }
     state.counters["Ops/sec"] = benchmark::Counter(state.iterations(), benchmark::Counter::kIsRate);
 }
@@ -197,7 +198,8 @@ static void BM_Binary_GetBestBids_15(benchmark::State& state) {
     BinaryOrderBook ob;
     for (auto& o : orders) ob.AddOrder(o);
     for (auto _ : state) {
-        benchmark::DoNotOptimize(ob.GetBestBids(15));
+        auto result = ob.GetBestBids(15);
+        benchmark::DoNotOptimize(result);
     }
     state.counters["Ops/sec"] = benchmark::Counter(state.iterations(), benchmark::Counter::kIsRate);
 }
