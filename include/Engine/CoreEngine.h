@@ -26,7 +26,8 @@ public:
     void CancelOrder(int order_id,const std::string& Symbol);
     std::vector<std::shared_ptr<Trade>> GetTradesHistory(const std::string& Symbol);
     std::vector<std::shared_ptr<Order>> GetOrders();
-    // get x best bids/asks
+    std::vector<std::shared_ptr<Order>> GetBestBids(int x,std::string& Symbol);
+    std::vector<std::shared_ptr<Order>> GetBestAsks(int x,std::string& Symbol);
 
 
 

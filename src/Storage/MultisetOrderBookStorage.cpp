@@ -104,6 +104,24 @@ const std::shared_ptr<Order> MultisetOrderBook::GetBestAsk()  {
     return (*asks.begin());
 }
 
+std::vector<std::shared_ptr<Order>> MultisetOrderBook::GetBestBids(int x)  {
+    std::vector<std::shared_ptr<Order>> result;
+    auto it = bids.begin();
+    for (int i = 0; i < x && it != bids.end(); ++i, ++it) {
+        result.push_back(*it);
+    }
+    return result;
+}
+
+std::vector<std::shared_ptr<Order>> MultisetOrderBook::GetBestAsks(int x)  {
+    std::vector<std::shared_ptr<Order>> result;
+    auto it = asks.begin();
+    for (int i = 0; i < x && it != asks.end(); ++i, ++it) {
+        result.push_back(*it);
+    }
+    return result;
+}
+
 bool MultisetOrderBook::IsBidEmpty() const {
     /**
      * @brief Checks if there are any Buy orders in the book.
@@ -118,7 +136,7 @@ bool MultisetOrderBook::IsAskEmpty() const {
     return asks.empty();
 }
 
-bool MultisetOrderBook::CanFillQuantityAsks(int Quantity, uint64_t Price) const {
+bool MultisetOrderBook::CanFillQuantityAsks(int Quantity, uint64_t Price)  {
 
     for (auto &order : asks) {
         if (order->GetPrice() > Price) {
@@ -133,7 +151,7 @@ bool MultisetOrderBook::CanFillQuantityAsks(int Quantity, uint64_t Price) const 
     return false;
 }
 
-bool MultisetOrderBook::CanFillQuantityBids(int Quantity, uint64_t Price) const {
+bool MultisetOrderBook::CanFillQuantityBids(int Quantity, uint64_t Price)  {
 
     for (auto &order : bids) {
         if (order->GetPrice() < Price) {

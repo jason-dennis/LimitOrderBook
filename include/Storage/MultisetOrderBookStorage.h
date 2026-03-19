@@ -65,11 +65,13 @@ public:
 
     const std::shared_ptr<Order>GetBestBid()  override;
     const std::shared_ptr<Order> GetBestAsk()  override;
+    std::vector<std::shared_ptr<Order>> GetBestBids(int x)  override;
+    std::vector<std::shared_ptr<Order>> GetBestAsks(int x)  override;
 
     bool IsBidEmpty() const override;
     bool IsAskEmpty() const override;
-    bool CanFillQuantityAsks(int Quantity, uint64_t Price) const override;
-    bool CanFillQuantityBids(int Quantity, uint64_t Price) const override;
+    bool CanFillQuantityAsks(int Quantity, uint64_t Price)  override;
+    bool CanFillQuantityBids(int Quantity, uint64_t Price)  override;
 
     void PopBestBid() override;
     void PopBestAsk() override;

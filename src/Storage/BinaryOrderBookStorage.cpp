@@ -173,7 +173,6 @@ void BinaryOrderBook::UpdateQuantity(int order_id, int new_quantity) {
 
 const std::shared_ptr<Order> BinaryOrderBook::GetBestBid()  {
 
-
     for (int i=(int)DIM_level4-1;i>=0;--i) {
         if (level4_bid[i] > 0) {
 
@@ -224,6 +223,101 @@ const std::shared_ptr<Order> BinaryOrderBook::GetBestAsk() {
 
 }
 
+std::vector<std::shared_ptr<Order>> BinaryOrderBook::GetBestBids(int x)  {
+    std::vector<std::shared_ptr<Order>> result;
+
+    for (int i=(int)DIM_level4-1;i>=0;--i) {
+        uint64_t L4 = level4_bid[i];
+
+        while (L4 > 0 and result.size() < x) {
+            uint64_t bit_level4 = (63 - __builtin_clzll(L4));
+            L4 &= ~(1ULL<<bit_level4);
+
+            uint64_t ind_level3 = i*64 + bit_level4;
+            uint64_t L3 = level3_bid[ind_level3];
+            while (L3 > 0 and result.size() < x) {
+                uint64_t bit_level3 = (63 - __builtin_clzll(L3));
+                L3 &= ~(1ULL<<bit_level3);
+
+                uint64_t ind_level2 = ind_level3*64 + bit_level3;
+                uint64_t L2 = level2_bid[ind_level2];
+
+                while (L2 > 0 and result.size() < x) {
+                    uint64_t bit_level2 = (63 - __builtin_clzll(L2));
+                    L2 &= ~(1ULL<<bit_level2);
+
+                    uint64_t ind_level1 = ind_level2*64 + bit_level2;
+                    uint64_t L1 = level1_bid[ind_level1];
+
+                    while (L1 > 0 and result.size() < x) {
+                        uint64_t bit_level1 = (63 - __builtin_clzll(L1));
+                        L1 &= ~(1ULL<<bit_level1);
+
+                        uint64_t Price = ind_level1*64 + bit_level1;
+                        Node* node = BidList_[Price].GetHead();
+                        while (node != nullptr) {
+                            result.push_back(node->GetOrder());
+                            if (result.size() >= x) {
+                                return result;
+                            }
+                            node = node->GetNext();
+                        }
+                    }
+                }
+            }
+
+        }
+    }
+    return result;
+}
+
+std::vector<std::shared_ptr<Order>> BinaryOrderBook::GetBestAsks(int x)  {
+    std::vector<std::shared_ptr<Order>> result;
+
+    for (int i=0;i<DIM_level4;++i) {
+        uint64_t L4 = level4_ask[i];
+
+        while (L4 > 0 and result.size() < x) {
+            uint64_t bit_level4 = ( __builtin_ctzll(L4));
+            L4 &= ~(1ULL<<bit_level4);
+
+            uint64_t ind_level3 = i*64 + bit_level4;
+            uint64_t L3 = level3_ask[ind_level3];
+            while (L3 > 0 and result.size() < x) {
+                uint64_t bit_level3 = (__builtin_ctzll(L3));
+                L3 &= ~(1ULL<<bit_level3);
+
+                uint64_t ind_level2 = ind_level3*64 + bit_level3;
+                uint64_t L2 = level2_ask[ind_level2];
+
+                while (L2 > 0 and result.size() < x) {
+                    uint64_t bit_level2 = (__builtin_ctzll(L2));
+                    L2 &= ~(1ULL<<bit_level2);
+
+                    uint64_t ind_level1 = ind_level2*64 + bit_level2;
+                    uint64_t L1 = level1_ask[ind_level1];
+
+                    while (L1 > 0 and result.size() < x) {
+                        uint64_t bit_level1 = ( __builtin_ctzll(L1));
+                        L1 &= ~(1ULL<<bit_level1);
+
+                        uint64_t Price = ind_level1*64 + bit_level1;
+                        Node* node = AskList_[Price].GetHead();
+                        while (node != nullptr) {
+                            result.push_back(node->GetOrder());
+                            if (result.size() >= x) {
+                                return result;
+                            }
+                            node = node->GetNext();
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return result;
+}
+
 bool BinaryOrderBook::IsBidEmpty() const {
 
     for (int i=0;i<DIM_level4;++i) {
@@ -244,12 +338,104 @@ bool BinaryOrderBook::IsAskEmpty() const {
     return true;
 }
 
-bool BinaryOrderBook::CanFillQuantityAsks(int Quantity, uint64_t Price) const {
-    return true;
+bool BinaryOrderBook::CanFillQuantityAsks(int Quantity, uint64_t Price)  {
+
+    int Q = 0;
+
+    for (int i=0;i<DIM_level4;++i) {
+        uint64_t L4 = level4_ask[i];
+
+        while (L4 > 0 and Q < Quantity) {
+            uint64_t bit_level4 = ( __builtin_ctzll(L4));
+            L4 &= ~(1ULL<<bit_level4);
+
+            uint64_t ind_level3 = i*64 + bit_level4;
+            uint64_t L3 = level3_ask[ind_level3];
+            while (L3 > 0 and Q < Quantity) {
+                uint64_t bit_level3 = (__builtin_ctzll(L3));
+                L3 &= ~(1ULL<<bit_level3);
+
+                uint64_t ind_level2 = ind_level3*64 + bit_level3;
+                uint64_t L2 = level2_ask[ind_level2];
+
+                while (L2 > 0 and Q < Quantity) {
+                    uint64_t bit_level2 = (__builtin_ctzll(L2));
+                    L2 &= ~(1ULL<<bit_level2);
+
+                    uint64_t ind_level1 = ind_level2*64 + bit_level2;
+                    uint64_t L1 = level1_ask[ind_level1];
+
+                    while (L1 > 0 and Q < Quantity) {
+                        uint64_t bit_level1 = ( __builtin_ctzll(L1));
+                        L1 &= ~(1ULL<<bit_level1);
+
+                        uint64_t Price_ = ind_level1*64 + bit_level1;
+                        if (Price_ > Price) {
+                            return false;
+                        }
+                        Node* node = AskList_[Price_].GetHead();
+                        while (node != nullptr) {
+                            Q += node->GetOrder()->GetQuantity();
+                            if (Q >= Quantity) {
+                                return true;
+                            }
+                            node = node->GetNext();
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return Q >= Quantity;
 }
 
-bool BinaryOrderBook::CanFillQuantityBids(int Quantity, uint64_t Price) const {
-    return true;
+bool BinaryOrderBook::CanFillQuantityBids(int Quantity, uint64_t Price)  {
+    int Q = 0;
+    for (int i=(int)DIM_level4-1;i>=0;--i) {
+        uint64_t L4 = level4_bid[i];
+
+        while (L4 > 0 and Q < Quantity) {
+            uint64_t bit_level4 = (63 - __builtin_clzll(L4));
+            L4 &= ~(1ULL<<bit_level4);
+            uint64_t ind_level3 = i*64 + bit_level4;
+            uint64_t L3 = level3_bid[ind_level3];
+            while (L3 > 0 and Q < Quantity) {
+                uint64_t bit_level3 = (63 - __builtin_clzll(L3));
+                L3 &= ~(1ULL<<bit_level3);
+
+                uint64_t ind_level2 = ind_level3*64 + bit_level3;
+                uint64_t L2 = level2_bid[ind_level2];
+
+                while (L2 > 0 and Q < Quantity) {
+                    uint64_t bit_level2 = (63 - __builtin_clzll(L2));
+                    L2 &= ~(1ULL<<bit_level2);
+
+                    uint64_t ind_level1 = ind_level2*64 + bit_level2;
+                    uint64_t L1 = level1_bid[ind_level1];
+
+                    while (L1 > 0 and Q < Quantity) {
+                        uint64_t bit_level1 = (63 - __builtin_clzll(L1));
+                        L1 &= ~(1ULL<<bit_level1);
+
+                        uint64_t Price_ = ind_level1*64 + bit_level1;
+                        if (Price_ < Price) {
+                            return false;
+                        }
+                        Node* node = BidList_[Price_].GetHead();
+                        while (node != nullptr) {
+                            Q += node->GetOrder()->GetQuantity();
+                            if (Q >= Quantity) {
+                                return true;
+                            }
+                            node = node->GetNext();
+                        }
+                    }
+                }
+            }
+
+        }
+    }
+    return Q >= Quantity;
 }
 
 void BinaryOrderBook::PopBestBid() {

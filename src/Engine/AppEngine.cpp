@@ -9,7 +9,7 @@ void AppEngine::AddOrder(const std::shared_ptr<Order>& order) {
     auto& Symbol = order->GetSymbol();
 
     if (!Engines_.contains(Symbol)) {
-        OrderBooks_[Symbol] = std::make_unique<MultisetOrderBook>();
+        OrderBooks_[Symbol] = std::make_unique<BinaryOrderBook>();
         Engines_[Symbol] = std::make_unique<MatchingEngine>(*OrderBooks_[Symbol]);
     }
     Engines_[Symbol]->ProcessOrder(order,HistoryTrades_[Symbol]);
@@ -28,4 +28,22 @@ std::vector<std::shared_ptr<Trade>> AppEngine::GetTradesHistory(const std::strin
     }
     return it->second;
 }
+
+std::vector<std::shared_ptr<Order>> AppEngine::GetBestBids(int x, std::string &Symbol) {
+    auto it = OrderBooks_.find(Symbol);
+    if (it == OrderBooks_.end()){
+        return {};
+    }
+   return it->second->GetBestBids(x);
+}
+
+std::vector<std::shared_ptr<Order>> AppEngine::GetBestAsks(int x, std::string &Symbol) {
+    auto it = OrderBooks_.find(Symbol);
+    if (it == OrderBooks_.end()){
+        return {};
+    }
+    return it->second->GetBestAsks(x);
+}
+
+
 

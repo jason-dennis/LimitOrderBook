@@ -379,3 +379,346 @@ TEST_F(BinaryOrderBookTest, Bitmap_AskMultiplePriceLevels_AfterPop_NextLevelVisi
     book.PopBestAsk();
     EXPECT_TRUE(book.IsAskEmpty());
 }
+
+// ═════════════════════════════════════════════
+// GetBestBids
+// ═════════════════════════════════════════════
+
+TEST_F(BinaryOrderBookTest, GetBestBids_EmptyBook_ReturnsEmpty) {
+    EXPECT_TRUE(book.GetBestBids(5).empty());
+}
+
+TEST_F(BinaryOrderBookTest, GetBestBids_XZero_ReturnsEmpty) {
+    AddBuy(1, 100, 10);
+    EXPECT_TRUE(book.GetBestBids(0).empty());
+}
+
+TEST_F(BinaryOrderBookTest, GetBestBids_XLargerThanBook_ReturnsAll) {
+    AddBuy(1, 100, 10);
+    AddBuy(2, 105, 10);
+    auto result = book.GetBestBids(10);
+    EXPECT_EQ(result.size(), 2u);
+}
+
+TEST_F(BinaryOrderBookTest, GetBestBids_ExactX_ReturnsX) {
+    AddBuy(1, 100, 10);
+    AddBuy(2, 105, 10);
+    AddBuy(3, 103, 10);
+    auto result = book.GetBestBids(2);
+    EXPECT_EQ(result.size(), 2u);
+}
+
+TEST_F(BinaryOrderBookTest, GetBestBids_SortedDescending_HighestPriceFirst) {
+    AddBuy(1, 100, 10);
+    AddBuy(2, 105, 10);
+    AddBuy(3, 103, 10);
+    auto result = book.GetBestBids(3);
+    ASSERT_EQ(result.size(), 3u);
+    EXPECT_EQ(result[0]->GetPrice(), 105u);
+    EXPECT_EQ(result[1]->GetPrice(), 103u);
+    EXPECT_EQ(result[2]->GetPrice(), 100u);
+}
+
+TEST_F(BinaryOrderBookTest, GetBestBids_SamePriceFIFO_OlderOrderFirst) {
+    AddBuy(1, 100, 5);
+    AddBuy(2, 100, 8);
+    auto result = book.GetBestBids(2);
+    ASSERT_EQ(result.size(), 2u);
+    EXPECT_EQ(result[0]->GetOrderID(), 1);
+    EXPECT_EQ(result[1]->GetOrderID(), 2);
+}
+
+TEST_F(BinaryOrderBookTest, GetBestBids_DoesNotModifyBook) {
+    AddBuy(1, 100, 10);
+    AddBuy(2, 105, 10);
+    book.GetBestBids(2);
+    EXPECT_FALSE(book.IsBidEmpty());
+    EXPECT_EQ(book.GetBestBid()->GetPrice(), 105u);
+}
+
+TEST_F(BinaryOrderBookTest, GetBestBids_OnlyBidsSide_AskUnaffected) {
+    AddBuy(1, 100, 10);
+    AddSell(2, 101, 10);
+    auto result = book.GetBestBids(5);
+    ASSERT_EQ(result.size(), 1u);
+    EXPECT_EQ(result[0]->GetSide(), OrderSide::BUY);
+}
+
+TEST_F(BinaryOrderBookTest, GetBestBids_AfterCancel_ReturnsUpdatedBook) {
+    AddBuy(1, 105, 10);
+    AddBuy(2, 100, 10);
+    book.CancelOrder(1);
+    auto result = book.GetBestBids(2);
+    ASSERT_EQ(result.size(), 1u);
+    EXPECT_EQ(result[0]->GetPrice(), 100u);
+}
+
+TEST_F(BinaryOrderBookTest, GetBestBids_Top3_CorrectQuantities) {
+    AddBuy(1, 110, 3);
+    AddBuy(2, 105, 7);
+    AddBuy(3, 100, 12);
+    AddBuy(4,  95, 1);
+    auto result = book.GetBestBids(3);
+    ASSERT_EQ(result.size(), 3u);
+    EXPECT_EQ(result[0]->GetQuantity(), 3);
+    EXPECT_EQ(result[1]->GetQuantity(), 7);
+    EXPECT_EQ(result[2]->GetQuantity(), 12);
+}
+
+TEST_F(BinaryOrderBookTest, GetBestBids_MultipleOrdersSamePrice_AllReturned) {
+    AddBuy(1, 100, 5);
+    AddBuy(2, 100, 8);
+    AddBuy(3, 100, 3);
+    auto result = book.GetBestBids(5);
+    ASSERT_EQ(result.size(), 3u);
+}
+
+TEST_F(BinaryOrderBookTest, GetBestBids_MultipleOrdersSamePrice_CappedAtX) {
+    AddBuy(1, 100, 5);
+    AddBuy(2, 100, 8);
+    AddBuy(3, 100, 3);
+    auto result = book.GetBestBids(2);
+    EXPECT_EQ(result.size(), 2u);
+}
+
+// ═════════════════════════════════════════════
+// GetBestAsks
+// ═════════════════════════════════════════════
+
+TEST_F(BinaryOrderBookTest, GetBestAsks_EmptyBook_ReturnsEmpty) {
+    EXPECT_TRUE(book.GetBestAsks(5).empty());
+}
+
+TEST_F(BinaryOrderBookTest, GetBestAsks_XZero_ReturnsEmpty) {
+    AddSell(1, 100, 5);
+    EXPECT_TRUE(book.GetBestAsks(0).empty());
+}
+
+TEST_F(BinaryOrderBookTest, GetBestAsks_XLargerThanBook_ReturnsAll) {
+    AddSell(1, 100, 5);
+    AddSell(2, 105, 5);
+    auto result = book.GetBestAsks(10);
+    EXPECT_EQ(result.size(), 2u);
+}
+
+TEST_F(BinaryOrderBookTest, GetBestAsks_ExactX_ReturnsX) {
+    AddSell(1, 100, 5);
+    AddSell(2, 103, 5);
+    AddSell(3, 107, 5);
+    auto result = book.GetBestAsks(2);
+    EXPECT_EQ(result.size(), 2u);
+}
+
+TEST_F(BinaryOrderBookTest, GetBestAsks_SortedAscending_LowestPriceFirst) {
+    AddSell(1, 107, 5);
+    AddSell(2, 100, 5);
+    AddSell(3, 103, 5);
+    auto result = book.GetBestAsks(3);
+    ASSERT_EQ(result.size(), 3u);
+    EXPECT_EQ(result[0]->GetPrice(), 100u);
+    EXPECT_EQ(result[1]->GetPrice(), 103u);
+    EXPECT_EQ(result[2]->GetPrice(), 107u);
+}
+
+TEST_F(BinaryOrderBookTest, GetBestAsks_SamePriceFIFO_OlderOrderFirst) {
+    AddSell(1, 100, 5);
+    AddSell(2, 100, 8);
+    auto result = book.GetBestAsks(2);
+    ASSERT_EQ(result.size(), 2u);
+    EXPECT_EQ(result[0]->GetOrderID(), 1);
+    EXPECT_EQ(result[1]->GetOrderID(), 2);
+}
+
+TEST_F(BinaryOrderBookTest, GetBestAsks_DoesNotModifyBook) {
+    AddSell(1, 100, 5);
+    AddSell(2, 105, 5);
+    book.GetBestAsks(2);
+    EXPECT_FALSE(book.IsAskEmpty());
+    EXPECT_EQ(book.GetBestAsk()->GetPrice(), 100u);
+}
+
+TEST_F(BinaryOrderBookTest, GetBestAsks_OnlyAsksSide_BidUnaffected) {
+    AddBuy(1,  99, 10);
+    AddSell(2, 101, 5);
+    auto result = book.GetBestAsks(5);
+    ASSERT_EQ(result.size(), 1u);
+    EXPECT_EQ(result[0]->GetSide(), OrderSide::SELL);
+}
+
+TEST_F(BinaryOrderBookTest, GetBestAsks_AfterCancel_ReturnsUpdatedBook) {
+    AddSell(1, 100, 5);
+    AddSell(2, 105, 5);
+    book.CancelOrder(1);
+    auto result = book.GetBestAsks(2);
+    ASSERT_EQ(result.size(), 1u);
+    EXPECT_EQ(result[0]->GetPrice(), 105u);
+}
+
+TEST_F(BinaryOrderBookTest, GetBestAsks_Top3_CorrectQuantities) {
+    AddSell(1, 100, 2);
+    AddSell(2, 103, 6);
+    AddSell(3, 107, 9);
+    AddSell(4, 112, 1);
+    auto result = book.GetBestAsks(3);
+    ASSERT_EQ(result.size(), 3u);
+    EXPECT_EQ(result[0]->GetQuantity(), 2);
+    EXPECT_EQ(result[1]->GetQuantity(), 6);
+    EXPECT_EQ(result[2]->GetQuantity(), 9);
+}
+
+TEST_F(BinaryOrderBookTest, GetBestAsks_MultipleOrdersSamePrice_AllReturned) {
+    AddSell(1, 100, 5);
+    AddSell(2, 100, 8);
+    AddSell(3, 100, 3);
+    auto result = book.GetBestAsks(5);
+    ASSERT_EQ(result.size(), 3u);
+}
+
+TEST_F(BinaryOrderBookTest, GetBestAsks_MultipleOrdersSamePrice_CappedAtX) {
+    AddSell(1, 100, 5);
+    AddSell(2, 100, 8);
+    AddSell(3, 100, 3);
+    auto result = book.GetBestAsks(2);
+    EXPECT_EQ(result.size(), 2u);
+}
+
+// ═════════════════════════════════════════════
+// CanFillQuantityBids
+// ═════════════════════════════════════════════
+
+TEST_F(BinaryOrderBookTest, CanFillQuantityBids_EmptyBook_ReturnsFalse) {
+    EXPECT_FALSE(book.CanFillQuantityBids(10, 100));
+}
+
+TEST_F(BinaryOrderBookTest, CanFillQuantityBids_SingleOrder_ExactFill) {
+    AddBuy(1, 100, 10);
+    EXPECT_TRUE(book.CanFillQuantityBids(10, 100));
+}
+
+TEST_F(BinaryOrderBookTest, CanFillQuantityBids_SingleOrder_PartialAvailable) {
+    AddBuy(1, 100, 5);
+    EXPECT_FALSE(book.CanFillQuantityBids(10, 100));
+}
+
+TEST_F(BinaryOrderBookTest, CanFillQuantityBids_MultipleOrders_CombinedFill) {
+    AddBuy(1, 105, 5);
+    AddBuy(2, 103, 5);
+    EXPECT_TRUE(book.CanFillQuantityBids(10, 100));
+}
+
+TEST_F(BinaryOrderBookTest, CanFillQuantityBids_PriceTooLow_ReturnsFalse) {
+    AddBuy(1, 95, 100);
+    EXPECT_FALSE(book.CanFillQuantityBids(10, 100));
+}
+
+TEST_F(BinaryOrderBookTest, CanFillQuantityBids_MixedPrices_OnlyUsesEligible) {
+    AddBuy(1, 110, 5);  // eligibil (>= 105)
+    AddBuy(2, 100, 50); // ineligibil (< 105)
+    EXPECT_FALSE(book.CanFillQuantityBids(10, 105));
+}
+
+TEST_F(BinaryOrderBookTest, CanFillQuantityBids_MultipleOrdersSamePrice_Combined) {
+    AddBuy(1, 100, 4);
+    AddBuy(2, 100, 6);
+    EXPECT_TRUE(book.CanFillQuantityBids(10, 100));
+}
+
+TEST_F(BinaryOrderBookTest, CanFillQuantityBids_QuantityHitsZeroMidLoop) {
+    AddBuy(1, 110, 10);
+    AddBuy(2, 105,  5);
+    EXPECT_TRUE(book.CanFillQuantityBids(10, 100));
+}
+
+TEST_F(BinaryOrderBookTest, CanFillQuantityBids_LoopExhausted_NeverHitsTarget) {
+    AddBuy(1, 110, 3);
+    AddBuy(2, 108, 3);
+    EXPECT_FALSE(book.CanFillQuantityBids(10, 100));
+}
+
+TEST_F(BinaryOrderBookTest, CanFillQuantityBids_AfterPartialUpdate_CorrectQty) {
+    AddBuy(1, 100, 10);
+    book.UpdateQuantity(1, 4);
+    EXPECT_FALSE(book.CanFillQuantityBids(5, 100));
+    EXPECT_TRUE(book.CanFillQuantityBids(4, 100));
+}
+
+// ═════════════════════════════════════════════
+// CanFillQuantityAsks
+// ═════════════════════════════════════════════
+
+TEST_F(BinaryOrderBookTest, CanFillQuantityAsks_EmptyBook_ReturnsFalse) {
+    EXPECT_FALSE(book.CanFillQuantityAsks(10, 100));
+}
+
+TEST_F(BinaryOrderBookTest, CanFillQuantityAsks_SingleOrder_ExactFill) {
+    AddSell(1, 100, 10);
+    EXPECT_TRUE(book.CanFillQuantityAsks(10, 100));
+}
+
+TEST_F(BinaryOrderBookTest, CanFillQuantityAsks_SingleOrder_PartialAvailable) {
+    AddSell(1, 100, 5);
+    EXPECT_FALSE(book.CanFillQuantityAsks(10, 100));
+}
+
+TEST_F(BinaryOrderBookTest, CanFillQuantityAsks_MultipleOrders_CombinedFill) {
+    AddSell(1, 100, 5);
+    AddSell(2, 100, 5);
+    EXPECT_TRUE(book.CanFillQuantityAsks(10, 100));
+}
+
+TEST_F(BinaryOrderBookTest, CanFillQuantityAsks_PriceTooHigh_ReturnsFalse) {
+    AddSell(1, 105, 100);
+    EXPECT_FALSE(book.CanFillQuantityAsks(10, 99));
+}
+
+TEST_F(BinaryOrderBookTest, CanFillQuantityAsks_MixedPrices_OnlyUsesEligible) {
+    AddSell(1, 100, 5);  // eligibil (<= 102)
+    AddSell(2, 103, 50); // ineligibil (> 102)
+    EXPECT_FALSE(book.CanFillQuantityAsks(10, 102));
+}
+
+TEST_F(BinaryOrderBookTest, CanFillQuantityAsks_MultipleOrdersSamePrice_Combined) {
+    AddSell(1, 100, 4);
+    AddSell(2, 100, 6);
+    EXPECT_TRUE(book.CanFillQuantityAsks(10, 100));
+}
+
+TEST_F(BinaryOrderBookTest, CanFillQuantityAsks_QuantityHitsZeroMidLoop) {
+    AddSell(1, 100, 10);
+    AddSell(2, 101,  5);
+    EXPECT_TRUE(book.CanFillQuantityAsks(10, 101));
+}
+
+TEST_F(BinaryOrderBookTest, CanFillQuantityAsks_LoopExhausted_NeverHitsTarget) {
+    AddSell(1, 100, 3);
+    AddSell(2, 100, 3);
+    EXPECT_FALSE(book.CanFillQuantityAsks(10, 100));
+}
+
+TEST_F(BinaryOrderBookTest, CanFillQuantityAsks_AfterPartialUpdate_CorrectQty) {
+    AddSell(1, 100, 10);
+    book.UpdateQuantity(1, 4);
+    EXPECT_FALSE(book.CanFillQuantityAsks(5, 100));
+    EXPECT_TRUE(book.CanFillQuantityAsks(4, 100));
+}
+
+// ═════════════════════════════════════════════
+// GetBestBids + GetBestAsks — combinat
+// ═════════════════════════════════════════════
+
+TEST_F(BinaryOrderBookTest, GetBestBidsAndAsks_IndependentOfEachOther) {
+    AddBuy(1,  99, 10);
+    AddBuy(2,  95,  5);
+    AddSell(3, 101,  3);
+    AddSell(4, 104,  7);
+
+    auto bids = book.GetBestBids(2);
+    auto asks = book.GetBestAsks(2);
+
+    ASSERT_EQ(bids.size(), 2u);
+    ASSERT_EQ(asks.size(), 2u);
+    EXPECT_EQ(bids[0]->GetPrice(),  99u);
+    EXPECT_EQ(bids[1]->GetPrice(),  95u);
+    EXPECT_EQ(asks[0]->GetPrice(), 101u);
+    EXPECT_EQ(asks[1]->GetPrice(), 104u);
+}

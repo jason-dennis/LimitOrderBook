@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 #include "../../include/Engine/MatchingEngine.h"
 #include "../../include/Storage/MultisetOrderBookStorage.h"
+#include "../../include/Storage/BinaryOrderBookStorage.h"
 #include "../../include/Domain/order.h"
 #include "../../include/Domain/trade.h"
 #include <chrono>

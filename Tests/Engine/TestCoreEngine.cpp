@@ -319,3 +319,197 @@ TEST_F(CoreEngineTest, CreateOrder_CrossingPrices_TradeAtMakerPrice) {
     EXPECT_EQ(trades[0]->GetPrice(), 110u * 100u);
     EXPECT_EQ(trades[0]->GetQuantity(), 10);
 }
+
+// ═════════════════════════════════════════════
+// GetBestBids
+// ═════════════════════════════════════════════
+
+TEST_F(CoreEngineTest, GetBestBids_UnknownSymbol_ReturnsEmpty) {
+    std::string sym = "NOPE";
+    EXPECT_TRUE(engine.GetBestBids(5, sym).empty());
+}
+
+TEST_F(CoreEngineTest, GetBestBids_XZero_ReturnsEmpty) {
+    Buy(100, 10);
+    std::string sym = "BTCUSD";
+    EXPECT_TRUE(engine.GetBestBids(0, sym).empty());
+}
+
+TEST_F(CoreEngineTest, GetBestBids_NoOrdersForSymbol_ReturnsEmpty) {
+    Buy(100, 10, "BTCUSD");
+    std::string sym = "ETHUSD";
+    EXPECT_TRUE(engine.GetBestBids(5, sym).empty());
+}
+
+TEST_F(CoreEngineTest, GetBestBids_SingleOrder_ReturnedCorrectly) {
+    Buy(100, 10);
+    std::string sym = "BTCUSD";
+    auto result = engine.GetBestBids(5, sym);
+    ASSERT_EQ(result.size(), 1u);
+    EXPECT_EQ(result[0]->GetPrice(), 100u * 100u); // Price * Tick
+    EXPECT_EQ(result[0]->GetQuantity(), 10);
+}
+
+TEST_F(CoreEngineTest, GetBestBids_SortedDescending_HighestPriceFirst) {
+    Buy(100, 10);
+    Buy(105, 10);
+    Buy(103, 10);
+    std::string sym = "BTCUSD";
+    auto result = engine.GetBestBids(3, sym);
+    ASSERT_EQ(result.size(), 3u);
+    EXPECT_EQ(result[0]->GetPrice(), 105u * 100u);
+    EXPECT_EQ(result[1]->GetPrice(), 103u * 100u);
+    EXPECT_EQ(result[2]->GetPrice(), 100u * 100u);
+}
+
+TEST_F(CoreEngineTest, GetBestBids_XLargerThanBook_ReturnsAll) {
+    Buy(100, 10);
+    Buy(105, 10);
+    std::string sym = "BTCUSD";
+    auto result = engine.GetBestBids(10, sym);
+    EXPECT_EQ(result.size(), 2u);
+}
+
+TEST_F(CoreEngineTest, GetBestBids_ExactX_ReturnsX) {
+    Buy(100, 10);
+    Buy(105, 10);
+    Buy(103, 10);
+    std::string sym = "BTCUSD";
+    auto result = engine.GetBestBids(2, sym);
+    EXPECT_EQ(result.size(), 2u);
+}
+
+TEST_F(CoreEngineTest, GetBestBids_DoesNotModifyBook) {
+    Buy(100, 10);
+    Buy(105, 10);
+    std::string sym = "BTCUSD";
+    engine.GetBestBids(2, sym);
+    // book intact — un sell la 105 tot ar trebui să matcheze
+    Sell(105, 10);
+    auto trades = engine.GetTradesHistory("BTCUSD");
+    ASSERT_EQ(trades.size(), 1u);
+    EXPECT_EQ(trades[0]->GetQuantity(), 10);
+}
+
+TEST_F(CoreEngineTest, GetBestBids_DifferentSymbols_IsolatedResults) {
+    Buy(100, 10, "BTCUSD");
+    Buy(200, 5,  "ETHUSD");
+    std::string btc = "BTCUSD";
+    std::string eth = "ETHUSD";
+    auto btcBids = engine.GetBestBids(5, btc);
+    auto ethBids = engine.GetBestBids(5, eth);
+    ASSERT_EQ(btcBids.size(), 1u);
+    ASSERT_EQ(ethBids.size(), 1u);
+    EXPECT_EQ(btcBids[0]->GetPrice(), 100u * 100u);
+    EXPECT_EQ(ethBids[0]->GetPrice(), 200u * 100u);
+}
+
+TEST_F(CoreEngineTest, GetBestBids_AfterCancelBestBid_ReturnsNext) {
+    Buy(105, 10);
+    Buy(100, 10);
+    auto orders = engine.GetOrders();
+    // primul ordin adăugat e cel cu 105 → id-ul lui
+    int orderId = orders[0]->GetOrderID();
+    engine.CancelOrder(orderId, "BTCUSD");
+    std::string sym = "BTCUSD";
+    auto result = engine.GetBestBids(5, sym);
+    ASSERT_EQ(result.size(), 1u);
+    EXPECT_EQ(result[0]->GetPrice(), 100u * 100u);
+}
+
+// ═════════════════════════════════════════════
+// GetBestAsks
+// ═════════════════════════════════════════════
+
+TEST_F(CoreEngineTest, GetBestAsks_UnknownSymbol_ReturnsEmpty) {
+    std::string sym = "NOPE";
+    EXPECT_TRUE(engine.GetBestAsks(5, sym).empty());
+}
+
+TEST_F(CoreEngineTest, GetBestAsks_XZero_ReturnsEmpty) {
+    Sell(100, 5);
+    std::string sym = "BTCUSD";
+    EXPECT_TRUE(engine.GetBestAsks(0, sym).empty());
+}
+
+TEST_F(CoreEngineTest, GetBestAsks_NoOrdersForSymbol_ReturnsEmpty) {
+    Sell(100, 10, "BTCUSD");
+    std::string sym = "ETHUSD";
+    EXPECT_TRUE(engine.GetBestAsks(5, sym).empty());
+}
+
+TEST_F(CoreEngineTest, GetBestAsks_SingleOrder_ReturnedCorrectly) {
+    Sell(100, 5);
+    std::string sym = "BTCUSD";
+    auto result = engine.GetBestAsks(5, sym);
+    ASSERT_EQ(result.size(), 1u);
+    EXPECT_EQ(result[0]->GetPrice(), 100u * 100u); // Price * Tick
+    EXPECT_EQ(result[0]->GetQuantity(), 5);
+}
+
+TEST_F(CoreEngineTest, GetBestAsks_SortedAscending_LowestPriceFirst) {
+    Sell(107, 5);
+    Sell(100, 5);
+    Sell(103, 5);
+    std::string sym = "BTCUSD";
+    auto result = engine.GetBestAsks(3, sym);
+    ASSERT_EQ(result.size(), 3u);
+    EXPECT_EQ(result[0]->GetPrice(), 100u * 100u);
+    EXPECT_EQ(result[1]->GetPrice(), 103u * 100u);
+    EXPECT_EQ(result[2]->GetPrice(), 107u * 100u);
+}
+
+TEST_F(CoreEngineTest, GetBestAsks_XLargerThanBook_ReturnsAll) {
+    Sell(100, 5);
+    Sell(105, 5);
+    std::string sym = "BTCUSD";
+    auto result = engine.GetBestAsks(10, sym);
+    EXPECT_EQ(result.size(), 2u);
+}
+
+TEST_F(CoreEngineTest, GetBestAsks_ExactX_ReturnsX) {
+    Sell(100, 5);
+    Sell(103, 5);
+    Sell(107, 5);
+    std::string sym = "BTCUSD";
+    auto result = engine.GetBestAsks(2, sym);
+    EXPECT_EQ(result.size(), 2u);
+}
+
+TEST_F(CoreEngineTest, GetBestAsks_DoesNotModifyBook) {
+    Sell(100, 10);
+    Sell(105, 10);
+    std::string sym = "BTCUSD";
+    engine.GetBestAsks(2, sym);
+    // book intact — un buy la 100 tot ar trebui să matcheze
+    Buy(100, 10);
+    auto trades = engine.GetTradesHistory("BTCUSD");
+    ASSERT_EQ(trades.size(), 1u);
+    EXPECT_EQ(trades[0]->GetQuantity(), 10);
+}
+
+TEST_F(CoreEngineTest, GetBestAsks_DifferentSymbols_IsolatedResults) {
+    Sell(100, 10, "BTCUSD");
+    Sell(200, 5,  "ETHUSD");
+    std::string btc = "BTCUSD";
+    std::string eth = "ETHUSD";
+    auto btcAsks = engine.GetBestAsks(5, btc);
+    auto ethAsks = engine.GetBestAsks(5, eth);
+    ASSERT_EQ(btcAsks.size(), 1u);
+    ASSERT_EQ(ethAsks.size(), 1u);
+    EXPECT_EQ(btcAsks[0]->GetPrice(), 100u * 100u);
+    EXPECT_EQ(ethAsks[0]->GetPrice(), 200u * 100u);
+}
+
+TEST_F(CoreEngineTest, GetBestAsks_AfterCancelBestAsk_ReturnsNext) {
+    Sell(100, 5);
+    Sell(105, 5);
+    auto orders = engine.GetOrders();
+    // primul ordin adăugat e cel cu 100 → id-ul lui
+    int orderId = orders[0]->GetOrderID();
+    engine.CancelOrder(orderId, "BTCUSD");
+    std::string sym = "BTCUSD";
+    auto result = engine.GetBestAsks(5, sym);
+    ASSERT_EQ(result.size(), 1u);
+    EXPECT_EQ(result[0]->GetPrice(), 105u * 100u);
+}

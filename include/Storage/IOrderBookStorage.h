@@ -45,6 +45,9 @@ public:
      */
     virtual const std::shared_ptr<Order> GetBestAsk()  = 0;
 
+    virtual std::vector<std::shared_ptr<Order>> GetBestBids(int x)  = 0;
+    virtual std::vector<std::shared_ptr<Order>> GetBestAsks(int x)  = 0;
+
     /**
      * @brief Checks for the presence of Buy orders.
      * @return true if the Bid side is empty.
@@ -56,8 +59,8 @@ public:
      * @return true if the Ask side is empty.
      */
     virtual bool IsAskEmpty() const = 0;
-    virtual bool CanFillQuantityAsks(int Quantity, uint64_t Price) const = 0;
-    virtual bool CanFillQuantityBids(int Quantity, uint64_t Price) const = 0;
+    virtual bool CanFillQuantityAsks(int Quantity, uint64_t Price)  = 0;
+    virtual bool CanFillQuantityBids(int Quantity, uint64_t Price)  = 0;
 
     /**
      * @brief Removes the top-priority Buy order from the book.

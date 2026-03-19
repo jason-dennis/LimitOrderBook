@@ -38,6 +38,14 @@ std::vector<std::shared_ptr<Order>> CoreEngine::GetOrders() {
     return Orders_;
 }
 
+std::vector<std::shared_ptr<Order>> CoreEngine::GetBestBids(int x,std::string& Symbol) {
+    return App_.GetBestBids(x,Symbol);
+}
+
+std::vector<std::shared_ptr<Order>> CoreEngine::GetBestAsks(int x,std::string& Symbol) {
+    return App_.GetBestAsks(x,Symbol);
+}
+
 
 
 

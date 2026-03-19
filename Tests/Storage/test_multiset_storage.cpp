@@ -483,3 +483,203 @@ TEST_F(MultisetOrderBookTest, SharedOwnership_PartialFillVisibleOutside) {
     EXPECT_EQ(order->GetQuantity(), 5);
     EXPECT_EQ(order->GetStatus(), OrderStatus::PARTIALLY_FILLED);
 }
+
+// ═════════════════════════════════════════════
+// GetBestBids
+// ═════════════════════════════════════════════
+
+TEST_F(MultisetOrderBookTest, GetBestBids_EmptyBook_ReturnsEmpty) {
+    EXPECT_TRUE(book.GetBestBids(5).empty());
+}
+
+TEST_F(MultisetOrderBookTest, GetBestBids_XLargerThanBook_ReturnsAll) {
+    book.AddOrder(MakeBuy(1, 100, 10));
+    book.AddOrder(MakeBuy(2, 105, 10));
+    auto result = book.GetBestBids(10); // 10 cerut, 2 disponibile
+    EXPECT_EQ(result.size(), 2u);
+}
+
+TEST_F(MultisetOrderBookTest, GetBestBids_XZero_ReturnsEmpty) {
+    book.AddOrder(MakeBuy(1, 100, 10));
+    EXPECT_TRUE(book.GetBestBids(0).empty());
+}
+
+TEST_F(MultisetOrderBookTest, GetBestBids_ExactX_ReturnsX) {
+    book.AddOrder(MakeBuy(1, 100, 10));
+    book.AddOrder(MakeBuy(2, 105, 10));
+    book.AddOrder(MakeBuy(3, 103, 10));
+    auto result = book.GetBestBids(2);
+    EXPECT_EQ(result.size(), 2u);
+}
+
+TEST_F(MultisetOrderBookTest, GetBestBids_SortedDescending_HighestPriceFirst) {
+    book.AddOrder(MakeBuy(1, 100, 10));
+    book.AddOrder(MakeBuy(2, 105, 10));
+    book.AddOrder(MakeBuy(3, 103, 10));
+    auto result = book.GetBestBids(3);
+    ASSERT_EQ(result.size(), 3u);
+    EXPECT_EQ(result[0]->GetPrice(), 105u);
+    EXPECT_EQ(result[1]->GetPrice(), 103u);
+    EXPECT_EQ(result[2]->GetPrice(), 100u);
+}
+
+TEST_F(MultisetOrderBookTest, GetBestBids_SamePriceFIFO_OlderOrderFirst) {
+    // Comenzile cu același preț sunt ordonate după timp (FIFO)
+    // MakeBuy folosește now() la fiecare apel → ordinea de inserție = ordinea temporală
+    auto b1 = MakeBuy(1, 100, 5);
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    auto b2 = MakeBuy(2, 100, 8);
+    book.AddOrder(b1);
+    book.AddOrder(b2);
+    auto result = book.GetBestBids(2);
+    ASSERT_EQ(result.size(), 2u);
+    EXPECT_EQ(result[0]->GetOrderID(), 1); // b1 mai vechi → primul
+    EXPECT_EQ(result[1]->GetOrderID(), 2);
+}
+
+TEST_F(MultisetOrderBookTest, GetBestBids_DoesNotModifyBook) {
+    book.AddOrder(MakeBuy(1, 100, 10));
+    book.AddOrder(MakeBuy(2, 105, 10));
+    book.GetBestBids(2);
+    // book intact după query
+    EXPECT_FALSE(book.IsBidEmpty());
+    EXPECT_EQ(book.GetBestBid()->GetPrice(), 105u);
+}
+
+TEST_F(MultisetOrderBookTest, GetBestBids_OnlyBidsSide_AskUnaffected) {
+    book.AddOrder(MakeBuy(1,  100, 10));
+    book.AddOrder(MakeSell(2, 101, 10));
+    auto result = book.GetBestBids(5);
+    ASSERT_EQ(result.size(), 1u);
+    EXPECT_EQ(result[0]->GetSide(), OrderSide::BUY);
+}
+
+TEST_F(MultisetOrderBookTest, GetBestBids_AfterCancel_ReturnsUpdatedBook) {
+    book.AddOrder(MakeBuy(1, 105, 10));
+    book.AddOrder(MakeBuy(2, 100, 10));
+    book.CancelOrder(1); // scoate cel mai bun bid
+    auto result = book.GetBestBids(2);
+    ASSERT_EQ(result.size(), 1u);
+    EXPECT_EQ(result[0]->GetPrice(), 100u);
+}
+
+TEST_F(MultisetOrderBookTest, GetBestBids_Top3_CorrectQuantities) {
+    book.AddOrder(MakeBuy(1, 110, 3));
+    book.AddOrder(MakeBuy(2, 105, 7));
+    book.AddOrder(MakeBuy(3, 100, 12));
+    book.AddOrder(MakeBuy(4,  95, 1));
+    auto result = book.GetBestBids(3);
+    ASSERT_EQ(result.size(), 3u);
+    EXPECT_EQ(result[0]->GetQuantity(), 3);
+    EXPECT_EQ(result[1]->GetQuantity(), 7);
+    EXPECT_EQ(result[2]->GetQuantity(), 12);
+}
+
+// ═════════════════════════════════════════════
+// GetBestAsks
+// ═════════════════════════════════════════════
+
+TEST_F(MultisetOrderBookTest, GetBestAsks_EmptyBook_ReturnsEmpty) {
+    EXPECT_TRUE(book.GetBestAsks(5).empty());
+}
+
+TEST_F(MultisetOrderBookTest, GetBestAsks_XLargerThanBook_ReturnsAll) {
+    book.AddOrder(MakeSell(1, 100, 5));
+    book.AddOrder(MakeSell(2, 105, 5));
+    auto result = book.GetBestAsks(10);
+    EXPECT_EQ(result.size(), 2u);
+}
+
+TEST_F(MultisetOrderBookTest, GetBestAsks_XZero_ReturnsEmpty) {
+    book.AddOrder(MakeSell(1, 100, 5));
+    EXPECT_TRUE(book.GetBestAsks(0).empty());
+}
+
+TEST_F(MultisetOrderBookTest, GetBestAsks_ExactX_ReturnsX) {
+    book.AddOrder(MakeSell(1, 100, 5));
+    book.AddOrder(MakeSell(2, 103, 5));
+    book.AddOrder(MakeSell(3, 107, 5));
+    auto result = book.GetBestAsks(2);
+    EXPECT_EQ(result.size(), 2u);
+}
+
+TEST_F(MultisetOrderBookTest, GetBestAsks_SortedAscending_LowestPriceFirst) {
+    book.AddOrder(MakeSell(1, 107, 5));
+    book.AddOrder(MakeSell(2, 100, 5));
+    book.AddOrder(MakeSell(3, 103, 5));
+    auto result = book.GetBestAsks(3);
+    ASSERT_EQ(result.size(), 3u);
+    EXPECT_EQ(result[0]->GetPrice(), 100u);
+    EXPECT_EQ(result[1]->GetPrice(), 103u);
+    EXPECT_EQ(result[2]->GetPrice(), 107u);
+}
+
+TEST_F(MultisetOrderBookTest, GetBestAsks_SamePriceFIFO_OlderOrderFirst) {
+    auto s1 = MakeSell(1, 100, 5);
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    auto s2 = MakeSell(2, 100, 8);
+    book.AddOrder(s1);
+    book.AddOrder(s2);
+    auto result = book.GetBestAsks(2);
+    ASSERT_EQ(result.size(), 2u);
+    EXPECT_EQ(result[0]->GetOrderID(), 1);
+    EXPECT_EQ(result[1]->GetOrderID(), 2);
+}
+
+TEST_F(MultisetOrderBookTest, GetBestAsks_DoesNotModifyBook) {
+    book.AddOrder(MakeSell(1, 100, 5));
+    book.AddOrder(MakeSell(2, 105, 5));
+    book.GetBestAsks(2);
+    EXPECT_FALSE(book.IsAskEmpty());
+    EXPECT_EQ(book.GetBestAsk()->GetPrice(), 100u);
+}
+
+TEST_F(MultisetOrderBookTest, GetBestAsks_OnlyAsksSide_BidUnaffected) {
+    book.AddOrder(MakeBuy(1,  99, 10));
+    book.AddOrder(MakeSell(2, 101, 5));
+    auto result = book.GetBestAsks(5);
+    ASSERT_EQ(result.size(), 1u);
+    EXPECT_EQ(result[0]->GetSide(), OrderSide::SELL);
+}
+
+TEST_F(MultisetOrderBookTest, GetBestAsks_AfterCancel_ReturnsUpdatedBook) {
+    book.AddOrder(MakeSell(1, 100, 5));
+    book.AddOrder(MakeSell(2, 105, 5));
+    book.CancelOrder(1); // scoate cel mai bun ask
+    auto result = book.GetBestAsks(2);
+    ASSERT_EQ(result.size(), 1u);
+    EXPECT_EQ(result[0]->GetPrice(), 105u);
+}
+
+TEST_F(MultisetOrderBookTest, GetBestAsks_Top3_CorrectQuantities) {
+    book.AddOrder(MakeSell(1, 100, 2));
+    book.AddOrder(MakeSell(2, 103, 6));
+    book.AddOrder(MakeSell(3, 107, 9));
+    book.AddOrder(MakeSell(4, 112, 1));
+    auto result = book.GetBestAsks(3);
+    ASSERT_EQ(result.size(), 3u);
+    EXPECT_EQ(result[0]->GetQuantity(), 2);
+    EXPECT_EQ(result[1]->GetQuantity(), 6);
+    EXPECT_EQ(result[2]->GetQuantity(), 9);
+}
+
+// ═════════════════════════════════════════════
+// GetBestBids + GetBestAsks — combinat
+// ═════════════════════════════════════════════
+
+TEST_F(MultisetOrderBookTest, GetBestBidsAndAsks_IndependentOfEachOther) {
+    book.AddOrder(MakeBuy(1,  99, 10));
+    book.AddOrder(MakeBuy(2,  95,  5));
+    book.AddOrder(MakeSell(3, 101,  3));
+    book.AddOrder(MakeSell(4, 104,  7));
+
+    auto bids = book.GetBestBids(2);
+    auto asks = book.GetBestAsks(2);
+
+    ASSERT_EQ(bids.size(), 2u);
+    ASSERT_EQ(asks.size(), 2u);
+    EXPECT_EQ(bids[0]->GetPrice(), 99u);
+    EXPECT_EQ(bids[1]->GetPrice(), 95u);
+    EXPECT_EQ(asks[0]->GetPrice(), 101u);
+    EXPECT_EQ(asks[1]->GetPrice(), 104u);
+}
