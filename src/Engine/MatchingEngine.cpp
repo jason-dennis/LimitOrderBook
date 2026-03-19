@@ -4,7 +4,7 @@
 #include "Engine/MatchingEngine.h"
 
 
-void MatchingEngine::ProcessOrder(std::shared_ptr<Order> NewOrder,std::vector<std::shared_ptr<Trade>>&Trades) {
+void MatchingEngine::ProcessOrder(const std::shared_ptr<Order>& NewOrder,std::vector<std::shared_ptr<Trade>>&Trades) {
 
     OrderType Type=NewOrder->GetType();
     OrderSide Side=NewOrder->GetSide();
@@ -28,7 +28,7 @@ void MatchingEngine::ProcessOrder(std::shared_ptr<Order> NewOrder,std::vector<st
     }
 }
 
-void MatchingEngine::MatchOrderBid(std::shared_ptr<Order> NewOrder, std::vector<std::shared_ptr<Trade>>&Trades) {
+void MatchingEngine::MatchOrderBid(const std::shared_ptr<Order>& NewOrder, std::vector<std::shared_ptr<Trade>>&Trades) {
     
     while (!OrderBook_.IsAskEmpty()
           and NewOrder->GetQuantity() > 0
@@ -54,7 +54,7 @@ void MatchingEngine::MatchOrderBid(std::shared_ptr<Order> NewOrder, std::vector<
     }
 }
 
-void MatchingEngine::MatchOrderAsk(std::shared_ptr<Order> NewOrder, std::vector<std::shared_ptr<Trade>>&Trades) {
+void MatchingEngine::MatchOrderAsk(const std::shared_ptr<Order>& NewOrder, std::vector<std::shared_ptr<Trade>>&Trades) {
 
     while (!OrderBook_.IsBidEmpty()
            and NewOrder->GetQuantity() > 0
@@ -80,7 +80,7 @@ void MatchingEngine::MatchOrderAsk(std::shared_ptr<Order> NewOrder, std::vector<
     }
 }
 
-void MatchingEngine::ProcessBuyLimit(std::shared_ptr<Order> NewOrder, std::vector<std::shared_ptr<Trade>>&Trades) {
+void MatchingEngine::ProcessBuyLimit(const std::shared_ptr<Order>& NewOrder, std::vector<std::shared_ptr<Trade>>&Trades) {
 
     if (NewOrder->GetTIF()==TimeInForce::FOK) {
         if (OrderBook_.CanFillQuantityAsks(NewOrder->GetQuantity(),NewOrder->GetPrice())) {
@@ -95,7 +95,7 @@ void MatchingEngine::ProcessBuyLimit(std::shared_ptr<Order> NewOrder, std::vecto
     }
 }
 
-void MatchingEngine::ProcessBuyMarket(std::shared_ptr<Order> NewOrder, std::vector<std::shared_ptr<Trade>>&Trades) {
+void MatchingEngine::ProcessBuyMarket(const std::shared_ptr<Order>& NewOrder, std::vector<std::shared_ptr<Trade>>&Trades) {
 
     if (NewOrder->GetTIF()==TimeInForce::FOK) {
         if (OrderBook_.CanFillQuantityAsks(NewOrder->GetQuantity(),NewOrder->GetPrice())) {
@@ -108,7 +108,7 @@ void MatchingEngine::ProcessBuyMarket(std::shared_ptr<Order> NewOrder, std::vect
 
 }
 
-void MatchingEngine::ProcessSellLimit(std::shared_ptr<Order> NewOrder,std::vector<std::shared_ptr<Trade>>&Trades) {
+void MatchingEngine::ProcessSellLimit(const std::shared_ptr<Order>& NewOrder,std::vector<std::shared_ptr<Trade>>&Trades) {
 
 
     if (NewOrder->GetTIF()==TimeInForce::FOK) {
@@ -125,7 +125,7 @@ void MatchingEngine::ProcessSellLimit(std::shared_ptr<Order> NewOrder,std::vecto
 
 }
 
-void MatchingEngine::ProcessSellMarket(std::shared_ptr<Order> NewOrder,std::vector<std::shared_ptr<Trade>>&Trades) {
+void MatchingEngine::ProcessSellMarket(const std::shared_ptr<Order>& NewOrder,std::vector<std::shared_ptr<Trade>>&Trades) {
 
 
     if (NewOrder->GetTIF()==TimeInForce::FOK) {

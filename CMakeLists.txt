@@ -39,21 +39,20 @@ FetchContent_MakeAvailable(googletest googlebenchmark)
 set(COMMON_SOURCES
         src/Storage/MultisetOrderBookStorage.cpp
         src/Engine/MatchingEngine.cpp
+        src/Engine/CoreEngine.cpp
+        src/Engine/AppEngine.cpp
         src/Domain/order.cpp
         src/Storage/BinaryOrderBookStorage.cpp
 )
 
-add_library(trading_lib STATIC ${COMMON_SOURCES}
-        src/Engine/CoreEngine.cpp)
+add_library(trading_lib STATIC ${COMMON_SOURCES})
 target_include_directories(trading_lib PUBLIC include)
 
 add_library(trading_lib_cov STATIC ${COMMON_SOURCES})
 target_include_directories(trading_lib_cov PUBLIC include)
 
 # --- Main executable ----------------------------------------------------------
-add_executable(LimitOrderBook main.cpp
-        include/Engine/UserEngine.h
-        include/Engine/CoreEngine.h)
+add_executable(LimitOrderBook main.cpp)
 target_include_directories(LimitOrderBook PRIVATE include)
 target_link_libraries(LimitOrderBook
         PRIVATE trading_lib
@@ -71,6 +70,8 @@ add_executable(run_tests
         Tests/Domain/test_order.cpp
         Tests/Engine/TestMatchingEngine.cpp
         Tests/Storage/test_binaryorderbook.cpp
+        Tests/Engine/TestAppEngine.cpp
+        Tests/Engine/TestCoreEngine.cpp
 )
 target_link_libraries(run_tests PRIVATE trading_lib_cov gtest_main)
 

@@ -7,7 +7,6 @@
 #include "../../include/Storage/IOrderBookStorage.h"
 #include "../../include/Domain/trade.h"
 #include <vector>
-#include <deque>
 
 /// scoate history trades de aici si pune l in app engine, renunta la vector trade
 /// fa in loc de deque, vector<std::shared_ptr<>
@@ -20,15 +19,15 @@ public:
 
     MatchingEngine(IOrderBook& OrderBook):OrderBook_(OrderBook){};
 
-    void ProcessOrder(std::shared_ptr<Order> NewOrder,std::vector<std::shared_ptr<Trade>>&Trades);
+    void ProcessOrder(const std::shared_ptr<Order>& NewOrder,std::vector<std::shared_ptr<Trade>>&Trades);
     const IOrderBook& GetOrderBook() const { return OrderBook_; }
-    void MatchOrderBid(std::shared_ptr<Order> NewOrder, std::vector<std::shared_ptr<Trade>>&Trades);
-    void MatchOrderAsk(std::shared_ptr<Order> NewOrderr, std::vector<std::shared_ptr<Trade>>&Trades);
+    void MatchOrderBid(const std::shared_ptr<Order>& NewOrder, std::vector<std::shared_ptr<Trade>>&Trades);
+    void MatchOrderAsk(const std::shared_ptr<Order>& NewOrder, std::vector<std::shared_ptr<Trade>>&Trades);
 
-    void ProcessBuyLimit(std::shared_ptr<Order> NewOrder,std::vector<std::shared_ptr<Trade>>&Trades);
-    void ProcessBuyMarket(std::shared_ptr<Order> NewOrder,std::vector<std::shared_ptr<Trade>>&Trades);
-    void ProcessSellLimit(std::shared_ptr<Order> NewOrder,std::vector<std::shared_ptr<Trade>>&Trades);
-    void ProcessSellMarket(std::shared_ptr<Order> NewOrder,std::vector<std::shared_ptr<Trade>>&Trades);
+    void ProcessBuyLimit(const std::shared_ptr<Order>& NewOrder,std::vector<std::shared_ptr<Trade>>&Trades);
+    void ProcessBuyMarket(const std::shared_ptr<Order>& NewOrder,std::vector<std::shared_ptr<Trade>>&Trades);
+    void ProcessSellLimit(const std::shared_ptr<Order>& NewOrder,std::vector<std::shared_ptr<Trade>>&Trades);
+    void ProcessSellMarket(const std::shared_ptr<Order>& NewOrder,std::vector<std::shared_ptr<Trade>>&Trades);
 
 };
 

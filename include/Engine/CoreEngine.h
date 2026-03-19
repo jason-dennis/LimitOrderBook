@@ -4,27 +4,28 @@
 
 #ifndef LIMITORDERBOOK_COREENGINE_H
 #define LIMITORDERBOOK_COREENGINE_H
-#include "Engine/UserEngine.h"
 #include "Domain/order.h"
 #include "Engine/AppEngine.h"
 
 
+
 class CoreEngine {
 private:
-    UserEngine User_;
+
     AppEngine App_;
+    std::vector<std::shared_ptr<Order>>Orders_;
 
     const int Tick = 100; // 0.01
     int GenerateID();
 
 public:
-    CoreEngine(): User_(),App_(){}
+    CoreEngine(): App_(){}
     ~CoreEngine() = default;
-    void CreateOrder(uint64_t Price,int Quantity,std::string Type, std::string Symbol,
-                    std::string TIF,int TraderID,std::string Side);
-    void CancelOrder(std::shared_ptr<Order> order);
-    void ModifyOrder(std::shared_ptr<Order> order);
-    std::vector<std::shared_ptr<Trade>> GetTradesHistory(std::string Symbol);
+    void CreateOrder(uint64_t Price,int Quantity,const std::string& Type, const std::string& Symbol,
+                    const std::string& TIF,int TraderID,const std::string& Side);
+    void CancelOrder(int order_id,const std::string& Symbol);
+    std::vector<std::shared_ptr<Trade>> GetTradesHistory(const std::string& Symbol);
+    std::vector<std::shared_ptr<Order>> GetOrders();
     // get x best bids/asks
 
 

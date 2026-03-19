@@ -11,6 +11,7 @@
 #include <unordered_map>
 
 #include "Storage/BinaryOrderBookStorage.h"
+#include "Storage/MultisetOrderBookStorage.h"
 
 class AppEngine{
 private:
@@ -24,21 +25,14 @@ public:
     AppEngine() = default;
     ~AppEngine() = default;
 
-    void AddOrder(std::shared_ptr<Order> order);
+    void AddOrder(const std::shared_ptr<Order>& order);
+    void CancelOrder(int order_id, const std::string& Symbol);
+    std::vector<std::shared_ptr<Trade>> GetTradesHistory(const std::string &Symbol) const;
+
+
 
 };
 
-inline void AppEngine::AddOrder(std::shared_ptr<Order> order) {
-    auto engineIt = Engines_.find(order->GetSymbol());
-    if (engineIt != Engines_.end()) {
-        engineIt->second->ProcessOrder(order,HistoryTrades_[order->GetSymbol()]);
-    }
-    else {
-        OrderBooks_[order->GetSymbol()] = std::make_unique<BinaryOrderBook>();
-        Engines_[order->GetSymbol()] = std::make_unique<MatchingEngine>(*OrderBooks_[order->GetSymbol()]);
-        Engines_[order->GetSymbol()]->ProcessOrder(order,HistoryTrades_[order->GetSymbol()]);
-    }
-}
 
 
 #endif //LIMITORDERBOOK_APPENGINE_H

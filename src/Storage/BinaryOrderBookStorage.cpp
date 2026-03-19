@@ -12,7 +12,7 @@ uint64_t BinaryOrderBook::CalcBit(uint64_t x) {
     return x%64;
 }
 
-void BinaryOrderBook::AddOrder(const std::shared_ptr<Order>order) {
+void BinaryOrderBook::AddOrder(std::shared_ptr<Order>order) {
 
     if (order->GetSide()==OrderSide::BUY) {
         uint64_t Price = order->GetPrice();

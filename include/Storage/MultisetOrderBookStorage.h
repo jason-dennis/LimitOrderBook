@@ -7,7 +7,6 @@
 #include "../Storage/IOrderBookStorage.h"
 #include <set>
 #include<unordered_map>
-#include <iterator>
 
 struct BidOrder {
     /**
@@ -15,7 +14,7 @@ struct BidOrder {
      * @brief Comparator for the Buy side of the order book.
      * Orders are sorted by Price (Descending) and then by Time (Ascending).
      */
-    bool operator()(const std::shared_ptr<Order> lhs, const std::shared_ptr<Order>  rhs) const {
+    bool operator()(const std::shared_ptr<Order>& lhs, const std::shared_ptr<Order>&  rhs) const {
         if (lhs->GetPrice() == rhs->GetPrice()) {
             return lhs->GetTime() < rhs->GetTime();
         }
@@ -29,7 +28,7 @@ struct AskOrder {
      * @brief Comparator for the Sell side of the order book.
      * Orders are sorted by Price (Ascending) and then by Time (Ascending).
      */
-    bool operator()(const std::shared_ptr<Order>  lhs, const std::shared_ptr<Order> rhs) const {
+    bool operator()(const std::shared_ptr<Order> & lhs, const std::shared_ptr<Order> &rhs) const {
         if (lhs->GetPrice() == rhs->GetPrice()) {
             return lhs->GetTime() < rhs->GetTime();
         }

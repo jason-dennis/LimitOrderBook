@@ -10,8 +10,8 @@ int CoreEngine::GenerateID() {
 }
 
 
-void CoreEngine::CreateOrder(uint64_t Price, int Quantity, std::string Type,
-                            std::string Symbol, std::string TIF,int TraderID,std::string Side) {
+void CoreEngine::CreateOrder(uint64_t Price, int Quantity, const std::string& Type,
+                            const std::string& Symbol, const std::string& TIF,int TraderID,const std::string& Side) {
 
     Price*=Tick;
     int OrderID=GenerateID();
@@ -23,9 +23,22 @@ void CoreEngine::CreateOrder(uint64_t Price, int Quantity, std::string Type,
 
     std::shared_ptr<Order> order = make_shared<Order>(OrderID,TraderID,side,type,Symbol,
                                     Price,Quantity,now,tif,Status);
-    /*
-     *  Add to user and App engine  !!!!!!!!!!
-     */
+    App_.AddOrder(order);
+    Orders_.push_back(order);
 }
+
+void CoreEngine::CancelOrder(int order_id,const std::string& Symbol) {
+    App_.CancelOrder(order_id,Symbol);
+}
+
+std::vector<std::shared_ptr<Trade>> CoreEngine::GetTradesHistory(const std::string &Symbol) {
+    return App_.GetTradesHistory(Symbol);
+}
+std::vector<std::shared_ptr<Order>> CoreEngine::GetOrders() {
+    return Orders_;
+}
+
+
+
 
 

@@ -30,7 +30,7 @@ void MultisetOrderBook::CancelOrder(int order_id) {
 
     auto bidIt = bidLocation.find(order_id);
     if (bidIt != bidLocation.end()) {
-        (*(bidIt->second))->SetStatus(OrderStatus::CANCELED);
+        (*bidIt->second)->SetStatus(OrderStatus::CANCELED);
         bids.erase(bidIt->second);
         bidLocation.erase(order_id);
         return;
@@ -55,7 +55,7 @@ void MultisetOrderBook::UpdateQuantity(int order_id, int new_quantity) {
      */
     auto bidIt = bidLocation.find(order_id);
     if (bidIt != bidLocation.end()) {
-        (*(bidIt->second))->SetQuantity(new_quantity);
+        (*bidIt->second)->SetQuantity(new_quantity);
         if (new_quantity>0) {
             (*(bidIt->second))->SetStatus(OrderStatus::PARTIALLY_FILLED);
         }
