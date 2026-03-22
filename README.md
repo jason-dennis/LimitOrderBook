@@ -2,7 +2,7 @@
 
 > A high-performance C++ limit order book implementation using a 4-level bitmap index for O(1) best price lookup, order insertion and cancellation.
 
-![UI](UI.png)
+![UI](assets/UI.png)
 
 ---
 
@@ -170,7 +170,7 @@ The project includes a real-time desktop UI built with **[Dear ImGui](https://gi
 
 > Measured on two platforms. Values at 100k orders, Release build, 5 repetitions.
 
-![benchmark](Benchmark.png)
+![benchmark](assets/Benchmark.png)
 
 | Operation | PC (i5-12400F) | Mac (M2) | Winner |
 |---|---|---|---|
