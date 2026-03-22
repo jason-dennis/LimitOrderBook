@@ -5,6 +5,7 @@
 #include "../../include/Domain/order.h"
 #include "../../include/Domain/trade.h"
 #include <chrono>
+#include <atomic>
 
 // ─────────────────────────────────────────────
 // Fixture
@@ -13,7 +14,9 @@
 class MatchingEngineTest : public ::testing::Test {
 protected:
     MultisetOrderBook book;
-    MatchingEngine engine{book};
+    std::atomic<int> TradeCounter_{1};
+    MatchingEngine engine{book,TradeCounter_};
+
     std::chrono::system_clock::time_point Now = std::chrono::system_clock::now();
 
     std::shared_ptr<Order> MakeBuy(int id, uint64_t price, int qty,

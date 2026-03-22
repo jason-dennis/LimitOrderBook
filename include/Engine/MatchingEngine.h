@@ -7,17 +7,16 @@
 #include "../../include/Storage/IOrderBookStorage.h"
 #include "../../include/Domain/trade.h"
 #include <vector>
-
-/// scoate history trades de aici si pune l in app engine, renunta la vector trade
-/// fa in loc de deque, vector<std::shared_ptr<>
+#include <atomic>
 
 class MatchingEngine {
 private:
     IOrderBook& OrderBook_;
+    std::atomic<int>& TradeCounter_;
 public:
     ~MatchingEngine()=default;
 
-    MatchingEngine(IOrderBook& OrderBook):OrderBook_(OrderBook){};
+    MatchingEngine(IOrderBook& OrderBook, std::atomic<int>&TradeCounter):OrderBook_(OrderBook),TradeCounter_(TradeCounter){};
 
     void ProcessOrder(const std::shared_ptr<Order>& NewOrder,std::vector<std::shared_ptr<Trade>>&Trades);
     const IOrderBook& GetOrderBook() const { return OrderBook_; }
@@ -28,6 +27,7 @@ public:
     void ProcessBuyMarket(const std::shared_ptr<Order>& NewOrder,std::vector<std::shared_ptr<Trade>>&Trades);
     void ProcessSellLimit(const std::shared_ptr<Order>& NewOrder,std::vector<std::shared_ptr<Trade>>&Trades);
     void ProcessSellMarket(const std::shared_ptr<Order>& NewOrder,std::vector<std::shared_ptr<Trade>>&Trades);
+
 
 };
 

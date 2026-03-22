@@ -90,6 +90,7 @@ class Order {
      * to support high-performance updates within sorted containers.
      */
 private:
+
     const int Order_ID_;
     const int Trader_ID_;
     OrderSide Side_;

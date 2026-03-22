@@ -12,6 +12,7 @@
 
 #include "Storage/BinaryOrderBookStorage.h"
 #include "Storage/MultisetOrderBookStorage.h"
+#include <atomic>
 
 class AppEngine{
 private:
@@ -19,6 +20,7 @@ private:
     std::unordered_map<std::string,std::unique_ptr<MatchingEngine>> Engines_;
     std::unordered_map<std::string,std::unique_ptr<IOrderBook>> OrderBooks_;
     std::unordered_map<std::string,std::vector<std::shared_ptr<Trade>>>HistoryTrades_;
+    std::atomic<int> TradeCounter_{1};
 
 public:
 
@@ -30,6 +32,9 @@ public:
     std::vector<std::shared_ptr<Trade>> GetTradesHistory(const std::string &Symbol) const;
     std::vector<std::shared_ptr<Order>> GetBestBids(int x,std::string& Symbol);
     std::vector<std::shared_ptr<Order>> GetBestAsks(int x,std::string& Symbol);
+    int GenerateTradeId();
+    void LoadFromFile();
+    void SaveToFile();
 
 
 };
