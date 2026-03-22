@@ -54,6 +54,7 @@ constexpr const char* ToString(TimeInForce tif) {
     constexpr const char* names[] = {"GTC", "IOC", "FOK"};
     return names[static_cast<int>(tif)];
 }
+// Helper functions for enum conversion
 inline OrderStatus ToOrderStatus(const std::string& s) {
     if (s == "NEW")              return OrderStatus::NEW;
     if (s == "PARTIALLY_FILLED") return OrderStatus::PARTIALLY_FILLED;

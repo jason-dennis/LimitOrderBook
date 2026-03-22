@@ -6,6 +6,11 @@
 #define LIMITORDERBOOK_TRADE_H
 #include <chrono>
 class Trade {
+    /**
+     *@class Trade
+     *@brief Represent a financial trade between 2 orders in trading system
+     *
+     */
 private:
     int ID_;
     int MakerID_;
@@ -18,9 +23,20 @@ private:
 public:
      ~Trade()=default;
 
+    /**
+     *
+     *
+     * @param ID /
+     * @param MakerID
+     * @param TakerID
+     * @param Price
+     * @param Quantity
+     * @param Symbol
+     * @param Timestamp
+     */
     Trade(int ID, int MakerID, int TakerID,
-         uint64_t Price,int Quantity,std::string Symbol,
-        std::chrono::system_clock::time_point Timestamp):
+          uint64_t Price,int Quantity,std::string Symbol,
+          std::chrono::system_clock::time_point Timestamp):
         ID_(ID),
         MakerID_(MakerID),
         TakerID_(TakerID),
@@ -30,6 +46,9 @@ public:
         Timestamp_(Timestamp){
         }
 
+    /**
+     * Getter functions
+     */
     int GetID() const {return ID_;}
     int GetMakerID() const {return MakerID_;}
     int GetTakerID() const {return TakerID_;}
