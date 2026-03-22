@@ -3,8 +3,10 @@ project(LimitOrderBook)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_FLAGS "-O0 -g")
-set(CMAKE_EXE_LINKER_FLAGS "-static-libgcc -static-libstdc++ -static")
+if(NOT APPLE)
+    set(CMAKE_CXX_FLAGS "-O0 -g")
+    set(CMAKE_EXE_LINKER_FLAGS "-static-libgcc -static-libstdc++ -static")
+endif ()
 include(FetchContent)
 
 # --- Fetch GLFW ---------------------------------------
